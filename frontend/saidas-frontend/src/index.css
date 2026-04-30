@@ -1,0 +1,235 @@
+/* ============================================================
+   SAIDAS — src/index.css
+   Tailwind v4: single import replaces all config files.
+   Theme tokens defined here via @theme.
+   ============================================================ */
+/* ── Google Fonts ─────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@import "tailwindcss";
+
+/* ── Design tokens (Tailwind v4 @theme) ──────────────────── */
+/*
+  These replace tailwind.config.js `theme.extend`.
+  Use them as: bg-primary, text-accent, shadow-card, etc.
+*/
+@theme {
+  /* Brand colours */
+  --color-primary:       #4F46E5;
+  --color-primary-light: #818CF8;
+  --color-primary-dark:  #3730A3;
+
+  --color-accent:        #06B6D4;
+  --color-accent-light:  #67E8F9;
+  --color-accent-dark:   #0E7490;
+
+  --color-success:       #10B981;
+  --color-warning:       #F59E0B;
+  --color-danger:        #EF4444;
+
+  /* Surface / background */
+  --color-surface:        #F8FAFC;
+  --color-surface-card:   #FFFFFF;
+  --color-surface-border: #E2E8F0;
+
+  /* Text */
+  --color-text-primary:   #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted:     #94A3B8;
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Spacing extras */
+  --spacing-18:  4.5rem;
+  --spacing-88:  22rem;
+  --spacing-128: 32rem;
+
+  /* Border radius */
+  --radius-xl:  0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+
+  /* Shadows */
+  --shadow-card:    0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  --shadow-card-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+  --shadow-card-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+
+  /* Animations */
+  --animate-fade-in:    fadeIn 0.3s ease-in-out;
+  --animate-slide-up:   slideUp 0.4s ease-out;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ── Base resets ──────────────────────────────────────────── */
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+a {
+  color: var(--color-primary);
+  transition: color 150ms;
+}
+a:hover { color: var(--color-primary-light); }
+
+code, pre, kbd {
+  font-family: var(--font-mono);
+}
+
+/* ── Reusable component classes ───────────────────────────── */
+@layer components {
+
+  /* Buttons */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.5rem;
+    border-radius: var(--radius-xl);
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #fff;
+    background-color: var(--color-primary);
+    transition: background-color 150ms, transform 100ms;
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary:hover    { background-color: var(--color-primary-dark); }
+  .btn-primary:active   { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.5rem;
+    border-radius: var(--radius-xl);
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--color-primary);
+    background-color: transparent;
+    border: 1.5px solid var(--color-primary);
+    transition: background-color 150ms, color 150ms, transform 100ms;
+    cursor: pointer;
+  }
+  .btn-secondary:hover  { background-color: var(--color-primary); color: #fff; }
+  .btn-secondary:active { transform: scale(0.97); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background-color 150ms;
+  }
+  .btn-ghost:hover { background-color: #f1f5f9; }
+
+  /* Card panel */
+  .card {
+    background-color: var(--color-surface-card);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-surface-border);
+    padding: 1.5rem;
+  }
+
+  /* Dashboard section heading */
+  .section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 1rem;
+  }
+
+  /* Metric / stat value */
+  .stat-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  /* Label above a stat or field */
+  .label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Divider */
+  .divider {
+    border-top: 1px solid var(--color-surface-border);
+    margin: 1.5rem 0;
+  }
+}
+
+/* ── Utilities ────────────────────────────────────────────── */
+@layer utilities {
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar       { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 9999px; }
+
+  /* Hero gradient text — SAIDAS title */
+  .text-gradient {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glassmorphism card */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}

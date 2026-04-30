@@ -1,0 +1,66 @@
+# =============================================================================
+# SAIDAS — Python Dependencies
+# =============================================================================
+# Install:  pip install -r requirements.txt
+# Tested on Python 3.10 / 3.11
+# =============================================================================
+
+
+# ---------------------------------------------------------------------------
+# Web framework & server
+# ---------------------------------------------------------------------------
+fastapi==0.111.0          # Core API framework
+uvicorn[standard]==0.29.0 # ASGI server (includes websockets + uvloop)
+python-multipart==0.0.9   # Required for FastAPI file upload (UploadFile)
+pydantic==2.7.1           # Data validation (FastAPI uses this internally)
+pydantic-settings==2.2.1  # Settings management via .env
+
+
+# ---------------------------------------------------------------------------
+# Data handling
+# ---------------------------------------------------------------------------
+pandas==2.2.2             # DataFrame operations, CSV parsing
+numpy>=2.0.0,<3.0.0            # Numerical computing (pinned for TF compatibility)
+openpyxl==3.1.2           # Optional: read .xlsx files if needed
+
+
+# ---------------------------------------------------------------------------
+# Data Mining
+# ---------------------------------------------------------------------------
+mlxtend==0.23.1   # Apriori, association rules
+
+
+# ---------------------------------------------------------------------------
+# Machine Learning
+# ---------------------------------------------------------------------------
+scikit-learn==1.4.2       # Logistic Regression, Random Forest, PCA,
+                           # K-Means, preprocessing, metrics
+keras==3.8.0              # Keras 3 standalone — resolves Pylance import warnings
+
+
+# ---------------------------------------------------------------------------
+# Deep Learning
+# ---------------------------------------------------------------------------
+tensorflow==2.19.0         # Keras MLP model (CPU-only friendly build)
+                           # Use tensorflow-cpu==2.19.0 for lighter install
+
+
+# ---------------------------------------------------------------------------
+# Visualization data (returned as JSON to frontend)
+# ---------------------------------------------------------------------------
+scipy==1.13.0              # Pearson correlation p-values, stats utilities
+
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+python-dotenv==1.0.1       # Load .env variables
+aiofiles==23.2.1           # Async file I/O for temp file handling
+httpx==0.27.0              # Async HTTP client (useful for testing)
+
+
+# ---------------------------------------------------------------------------
+# Development / Testing (optional but recommended)
+# ---------------------------------------------------------------------------
+pytest==8.2.0              # Unit testing
+pytest-asyncio==0.23.6     # Async test support
