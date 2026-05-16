@@ -66,7 +66,7 @@ export default function HomePage() {
                           border border-primary border-opacity-20
                           text-primary text-sm font-medium mb-6">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            Final Year Project — Data Analysis System
+            6th Semester Project — Data Analysis System
           </div>
 
           {/* Title */}
@@ -107,7 +107,7 @@ export default function HomePage() {
               { value: "3",        label: "Models Trained"   },
               { value: "4",        label: "Mining Algorithms"},
               { value: "Auto",     label: "Preprocessing"    },
-              { value: "AI",       label: "Insight Engine"   },
+              { value: "Smart",       label: "Insights"   },
             ].map(({ value, label }) => (
               <div key={label} className="card text-center py-5">
                 <div className="text-3xl font-extrabold text-primary mb-1">
@@ -217,7 +217,7 @@ export default function HomePage() {
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <footer className="border-t border-surface-border py-8 text-center">
         <p className="text-sm text-text-muted">
-          SAIDAS &mdash; Semi-Automated Intelligent Data Analysis System &mdash; Final Year Project
+          SAIDAS &mdash; Semi-Automated Intelligent Data Analysis System &mdash; Data Mining Semester Project
         </p>
       </footer>
 

@@ -3,34 +3,66 @@
 // Step 2: dataset preview table + target column selector
 // Step 3: trigger analysis pipeline → navigate to /dashboard
 
-import { useState, useRef, useCallback } from "react";
-import { useNavigate }                    from "react-router-dom";
-import { useUpload }                      from "@/hooks/useUpload";
-import { useAnalysis }                    from "@/hooks/useAnalysis";
-import { useAnalysisContext }             from "@/context/AnalysisContext";
-import { formatBytes }                    from "@/utils/formatters";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useUpload } from "@/hooks/useUpload";
+import { useAnalysis } from "@/hooks/useAnalysis";
+import { useAnalysisContext } from "@/context/AnalysisContext";
+import { formatBytes } from "@/utils/formatters";
+import TargetSelector from "@/components/upload/TargetSelector";
 
 export default function UploadPage() {
-  const navigate                       = useNavigate();
+  const navigate = useNavigate();
   const { upload, isUploading, error: uploadError } = useUpload();
-  const { runAnalysis, isAnalyzing }   = useAnalysis();
-  const { uploadResult }               = useAnalysisContext();
+  const { runAnalysis, isAnalyzing } = useAnalysis();
+  const { uploadResult } = useAnalysisContext();
 
-  const [isDragging,     setIsDragging]     = useState(false);
-  const [selectedFile,   setSelectedFile]   = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState("");
-  const [localError,     setLocalError]     = useState("");
+  const [localError, setLocalError] = useState("");
+  const [currentStep, setCurrentStep] = useState(0);
 
   const fileInputRef = useRef(null);
 
+  // ── Pipeline step progression ────────────────────────────────────────────
+  const pipelineSteps = [
+    "Preprocessing data…",
+    "Computing correlations…",
+    "Training ML models…",
+    "Training Deep Learning (MLP)…",
+    "Generating insights…",
+  ];
+
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setCurrentStep(0);
+      return;
+    }
+
+    const stepInterval = setInterval(() => {
+      setCurrentStep((prev) => {
+        if (prev < pipelineSteps.length - 1) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 1200);
+
+    return () => clearInterval(stepInterval);
+  }, [isAnalyzing, pipelineSteps.length]);
+
   // ── File handling ────────────────────────────────────────────────────────
-  const handleFile = useCallback(async (file) => {
-    if (!file) return;
-    setLocalError("");
-    setSelectedFile(file);
-    setSelectedTarget("");
-    await upload(file);
-  }, [upload]);
+  const handleFile = useCallback(
+    async (file) => {
+      if (!file) return;
+      setLocalError("");
+      setSelectedFile(file);
+      setSelectedTarget("");
+      await upload(file);
+    },
+    [upload],
+  );
 
   const onInputChange = (e) => {
     const file = e.target.files?.[0];
@@ -38,9 +70,15 @@ export default function UploadPage() {
   };
 
   // ── Drag-and-drop ────────────────────────────────────────────────────────
-  const onDragOver  = (e) => { e.preventDefault(); setIsDragging(true);  };
-  const onDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
-  const onDrop      = (e) => {
+  const onDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const onDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const onDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
@@ -57,45 +95,66 @@ export default function UploadPage() {
     await runAnalysis(selectedTarget);
   };
 
-  const columns = uploadResult?.columns     || [];
-  const preview = uploadResult?.preview     || [];
-  const rows    = uploadResult?.rows        || 0;
-  const dtypes  = uploadResult?.dtypes      || {};
+  const columns = uploadResult?.columns || [];
+  const preview = uploadResult?.preview || [];
+  const rows = uploadResult?.rows || 0;
+  const dtypes = uploadResult?.dtypes || {};
+  const uniqueCounts = uploadResult?.unique_counts || {};
 
   // Loading overlay
   if (isAnalyzing) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-6">
-        <div className="w-16 h-16 border-4 border-primary
-                        border-t-transparent rounded-full animate-spin" />
+        <div
+          className="w-12 h-12 border-4 border-primary
+                        border-t-transparent rounded-full animate-spin"
+        />
         <div className="text-center">
           <p className="text-lg font-semibold text-text-primary mb-1">
-            Training models… please wait
+            Running analysis pipeline
           </p>
           <p className="text-sm text-text-secondary">
-            Running preprocessing → data mining → ML → Deep Learning
+            Running preprocessing → data mining → ML → Deep Learning (MLP)
           </p>
         </div>
         {/* Animated pipeline steps */}
-        <div className="flex flex-col gap-2 mt-2 w-72">
-          {[
-            "Preprocessing data…",
-            "Computing correlations…",
-            "Training ML models…",
-            "Training Deep Learning MLP…",
-            "Generating insights…",
-          ].map((step, i) => (
-            <div
-              key={step}
-              className="flex items-center gap-3 text-sm text-text-secondary"
-              style={{ animationDelay: `${i * 0.5}s` }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-primary
-                              animate-[pulse_1.5s_ease-in-out_infinite]"
-                   style={{ animationDelay: `${i * 0.3}s` }} />
-              {step}
-            </div>
-          ))}
+        <div className="flex flex-col gap-3 mt-4 w-80">
+          {pipelineSteps.map((step, i) => {
+            const isCompleted = i < currentStep;
+            const isActive = i === currentStep;
+            const isUpcoming = i > currentStep;
+
+            return (
+              <div
+                key={step}
+                className={`flex items-center gap-3 text-sm transition-all duration-300 ${
+                  isUpcoming ? "opacity-40" : "opacity-100"
+                }`}
+              >
+                <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                  {isCompleted ? (
+                    <span className="text-success text-base">✓</span>
+                  ) : isActive ? (
+                    <div
+                      className="w-2 h-2 rounded-full bg-primary
+                                  animate-[pulse_1.5s_ease-in-out_infinite]"
+                    />
+                  ) : (
+                    <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+                  )}
+                </div>
+                <span
+                  className={`${
+                    isActive
+                      ? "text-text-primary font-medium"
+                      : "text-text-secondary"
+                  }`}
+                >
+                  {step}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -103,7 +162,6 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4 space-y-8 animate-[fadeIn_0.35s_ease]">
-
       {/* ── Page header ────────────────────────────────────────────────── */}
       <div>
         <h1 className="text-3xl font-bold text-text-primary mb-1">
@@ -116,18 +174,28 @@ export default function UploadPage() {
 
       {/* ── Breadcrumb ─────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 text-sm">
-        {["Upload file", "Preview data", "Select target", "Analyse"].map((step, i, arr) => (
-          <span key={step} className="flex items-center gap-2">
-            <span className={`font-medium ${
-              i === 0 && !uploadResult ? "text-primary" :
-              i === 1 && uploadResult && !selectedTarget ? "text-primary" :
-              i === 2 && uploadResult && !selectedTarget ? "text-text-muted" :
-              uploadResult && selectedTarget && i === 2 ? "text-primary" :
-              "text-text-muted"
-            }`}>{step}</span>
-            {i < arr.length - 1 && <span className="text-text-muted">›</span>}
-          </span>
-        ))}
+        {["Upload file", "Preview data", "Select target", "Analyse"].map(
+          (step, i, arr) => (
+            <span key={step} className="flex items-center gap-2">
+              <span
+                className={`font-medium ${
+                  i === 0 && !uploadResult
+                    ? "text-primary"
+                    : i === 1 && uploadResult && !selectedTarget
+                      ? "text-primary"
+                      : i === 2 && uploadResult && !selectedTarget
+                        ? "text-text-muted"
+                        : uploadResult && selectedTarget && i === 2
+                          ? "text-primary"
+                          : "text-text-muted"
+                }`}
+              >
+                {step}
+              </span>
+              {i < arr.length - 1 && <span className="text-text-muted">›</span>}
+            </span>
+          ),
+        )}
       </div>
 
       {/* ── Dropzone ───────────────────────────────────────────────────── */}
@@ -138,11 +206,12 @@ export default function UploadPage() {
         onClick={() => fileInputRef.current?.click()}
         className={`card cursor-pointer border-2 border-dashed transition-all duration-200
           flex flex-col items-center justify-center gap-4 py-14 text-center
-          ${isDragging
-            ? "border-primary bg-primary bg-opacity-5 scale-[1.01]"
-            : uploadResult
-              ? "border-success bg-success/10"
-              : "border-surface-border hover:border-primary"
+          ${
+            isDragging
+              ? "border-primary bg-primary bg-opacity-5 scale-[1.01]"
+              : uploadResult
+                ? "border-success bg-success/10"
+                : "border-surface-border hover:border-primary"
           }`}
       >
         <input
@@ -154,15 +223,20 @@ export default function UploadPage() {
         />
 
         {/* Icon */}
-        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl
-          ${uploadResult
-            ? "bg-green-100"
-            : "bg-primary bg-opacity-10"
-          }`}>
+        <div
+          className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl
+          ${uploadResult ? "bg-green-100" : "bg-primary bg-opacity-10"}`}
+        >
           {isUploading ? (
-            <div className="w-8 h-8 border-3 border-primary
-                            border-t-transparent rounded-full animate-spin" />
-          ) : uploadResult ? "✅" : "📂"}
+            <div
+              className="w-8 h-8 border-3 border-primary
+                            border-t-transparent rounded-full animate-spin"
+            />
+          ) : uploadResult ? (
+            "✅"
+          ) : (
+            "📂"
+          )}
         </div>
 
         {/* Text */}
@@ -182,9 +256,7 @@ export default function UploadPage() {
               {rows.toLocaleString()} rows · {columns.length} columns ·{" "}
               {selectedFile && formatBytes(selectedFile.size)}
             </p>
-            <p className="text-xs text-text-muted mt-1">
-              Click to replace
-            </p>
+            <p className="text-xs text-text-muted mt-1">Click to replace</p>
           </div>
         ) : (
           <div>
@@ -200,8 +272,10 @@ export default function UploadPage() {
 
       {/* ── Error banner ───────────────────────────────────────────────── */}
       {(uploadError || localError) && (
-        <div className="flex items-start gap-3 p-4 rounded-xl
-                        bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div
+          className="flex items-start gap-3 p-4 rounded-xl
+                        bg-red-50 border border-red-200 text-red-700 text-sm"
+        >
           <span className="text-lg">⚠️</span>
           <p>{uploadError || localError}</p>
         </div>
@@ -220,12 +294,16 @@ export default function UploadPage() {
           </div>
 
           {/* Scrollable table */}
-          <div className="overflow-x-auto scrollbar-thin rounded-xl border
-                          border-surface-border">
+          <div
+            className="overflow-x-auto scrollbar-thin rounded-xl border
+                          border-surface-border"
+          >
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-surface border-b
-                               border-surface-border">
+                <tr
+                  className="bg-surface border-b
+                               border-surface-border"
+                >
                   {columns.map((col) => (
                     <th
                       key={col}
@@ -233,8 +311,10 @@ export default function UploadPage() {
                                  text-text-primary whitespace-nowrap"
                     >
                       <div>{col}</div>
-                      <div className="text-[10px] font-normal text-text-muted
-                                      font-mono mt-0.5">
+                      <div
+                        className="text-[10px] font-normal text-text-muted
+                                      font-mono mt-0.5"
+                      >
                         {dtypes[col] || ""}
                       </div>
                     </th>
@@ -256,7 +336,9 @@ export default function UploadPage() {
                       >
                         {row[col] == null ? (
                           <span className="text-text-muted italic">null</span>
-                        ) : String(row[col])}
+                        ) : (
+                          String(row[col])
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -273,60 +355,24 @@ export default function UploadPage() {
 
       {/* ── Target column selector ─────────────────────────────────────── */}
       {uploadResult && columns.length > 0 && (
-        <div className="card animate-[slideUp_0.4s_ease]">
-          <h2 className="section-title">Select Target Variable</h2>
-          <p className="text-sm text-text-secondary mb-4">
-            Choose the column you want to predict. SAIDAS will auto-detect
-            whether this is a classification or regression task.
-          </p>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-6">
-            {columns.map((col) => (
-              <button
-                key={col}
-                onClick={() => { setSelectedTarget(col); setLocalError(""); }}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium text-left
-                            border transition-all duration-150 truncate
-                  ${selectedTarget === col
-                    ? "border-primary bg-primary text-white shadow-(--shadow-card)"
-                    : "border-surface-border bg-surface-card text-text-secondary hover:border-primary hover:text-primary"
-                  }`}
-                title={col}
-              >
-                {col}
-                <span className="block text-[10px] opacity-70 font-mono mt-0.5 font-normal">
-                  {dtypes[col] || ""}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Selected target info bar */}
-          {selectedTarget && (
-            <div className="flex items-center gap-3 p-3 rounded-xl
-                            bg-primary/5
-                            border border-primary/20">
-              <span className="text-lg">🎯</span>
-              <div className="text-sm">
-                <span className="font-semibold text-primary">
-                  {selectedTarget}
-                </span>
-                <span className="text-text-secondary ml-1">
-                  selected as target variable
-                </span>
-              </div>
-            </div>
-          )}
+        <div className="animate-[slideUp_0.4s_ease]">
+          <TargetSelector
+            columns={columns}
+            dtypes={dtypes}
+            nullCounts={{}}
+            uniqueCounts={uniqueCounts}
+            value={selectedTarget}
+            onChange={(col) => {
+              setSelectedTarget(col);
+              setLocalError("");
+            }}
+          />
         </div>
       )}
-
       {/* ── Analyse button ─────────────────────────────────────────────── */}
       {uploadResult && (
         <div className="flex items-center justify-between pt-2 animate-[slideUp_0.5s_ease]">
-          <button
-            onClick={() => navigate("/")}
-            className="btn-ghost"
-          >
+          <button onClick={() => navigate("/")} className="btn-ghost">
             ← Back to Home
           </button>
           <button
@@ -338,7 +384,6 @@ export default function UploadPage() {
           </button>
         </div>
       )}
-
     </div>
   );
 }

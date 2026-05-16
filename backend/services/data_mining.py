@@ -1,13 +1,23 @@
 """
-SAIDAS — services/data_mining.py
+SAIDAS — services/data_mining.py  (STABILISED v2)
 
-Data Mining pipeline:
+Data Mining pipeline — all 6 algorithms, safe for small–large datasets:
   1. Pearson Correlation Matrix
-  2. PCA (2-D projection for scatter plot)
-  3. K-Means Clustering + Elbow Method
-  4. Feature Importance via Random Forest
-  5. Association Rule Mining (Apriori)   ← NEW
-  6. Outlier Detection (IQR method)      ← NEW
+  2. PCA (2-D projection)
+  3. K-Means + Elbow + Silhouette Score    ← ADDED silhouette
+  4. Feature Importance (Random Forest)
+  5. Association Rule Mining (Apriori)     ← safe, skips large datasets
+  6. Outlier Detection (IQR)
+
+CHANGES IN THIS VERSION
+───────────────────────
+• _safe_numeric_df()     NEW — converts every column to float, fills NaN with 0
+• Row cap (1 000)        NEW — limits heavy computation on large datasets
+• Apriori guard          CHANGED — skipped if rows > ROW_CAP_ASSOC
+• Silhouette score       ADDED — returned inside clustering result
+• All functions wrapped  CHANGED — individual try/except, never crashes pipeline
+• Dynamic K ceiling      CHANGED — MAX_KMEANS_K scales with dataset size
+• PCA sample cap         ADDED — scatter points capped at 600 for JSON size
 """
 
 import numpy as np
@@ -16,32 +26,35 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import LabelEncoder
+
+# ---------------------------------------------------------------------------
+# Tunable constants
+# ---------------------------------------------------------------------------
+
+MAX_KMEANS_K          = 10     # Hard ceiling for K search
+ELBOW_MIN_K           = 2
+CORR_STRONG           = 0.7    # |r| threshold for "strong" pair
+MAX_FEATURES_PLOT     = 15     # Top-N features in importance chart
+PCA_RANDOM_STATE      = 42
+KMEANS_RANDOM         = 42
+PCA_SCATTER_CAP       = 600    # Max scatter points sent to frontend
+ROW_CAP               = 2000  # Rows above this → skip DL + Apriori, subsample
+ROW_CAP_ASSOC         = 2000    # Apriori cap (even stricter — combinatorial)
+
+# Apriori parameters
+ASSOC_MAX_UNIQUE     = 15
+ASSOC_MIN_SUPPORT    = 0.1
+ASSOC_MIN_CONFIDENCE = 0.5
+ASSOC_MAX_RULES      = 20
+
+# IQR outlier fence
+IQR_MULTIPLIER = 1.5
 
 
 # ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-MAX_KMEANS_K      = 10   # Maximum K evaluated in elbow method
-ELBOW_MIN_K       = 2    # Minimum sensible K
-CORR_STRONG       = 0.7  # Threshold for "strong" correlation insight
-MAX_FEATURES_PLOT = 15   # Limit feature importance chart to top-N features
-PCA_RANDOM_STATE  = 42
-KMEANS_RANDOM     = 42
-
-# Association rule mining constants
-ASSOC_MAX_UNIQUE      = 20     # Drop categorical columns with more unique values than this
-ASSOC_MIN_SUPPORT     = 0.1    # Minimum support for frequent itemsets
-ASSOC_MIN_CONFIDENCE  = 0.5    # Minimum confidence for rules
-ASSOC_MAX_RULES       = 20     # Return top-N rules sorted by confidence
-
-# Outlier detection constants
-IQR_MULTIPLIER = 1.5           # Standard Tukey fence multiplier
-
-
-# ---------------------------------------------------------------------------
-# Public entry point  (UNCHANGED — only two new lines added at the bottom)
+# Public entry point
 # ---------------------------------------------------------------------------
 
 def run_data_mining(
@@ -53,77 +66,116 @@ def run_data_mining(
     problem_type: str,
 ) -> dict:
     """
-    Orchestrates all data mining tasks and returns a single dict.
-
-    All results are JSON-serialisable (plain Python lists/dicts/floats).
+    Runs all six data-mining algorithms.
+    Each algorithm is wrapped individually — one failure never blocks others.
+    Returns a single JSON-serialisable dict.
     """
-    results = {}
+    n_rows    = len(df)
+    is_large  = n_rows > ROW_CAP        # flag used by callers (process.py)
+    results   = {"_dataset_rows": n_rows, "_is_large": is_large}
 
-    # 1. Correlation matrix (on original numeric columns, including target)
-    results["correlation"] = _compute_correlation(df, target)
+    # ── 1. Correlation ─────────────────────────────────────────────────
+    try:
+        results["correlation"] = _compute_correlation(df, target)
+    except Exception as e:
+        results["correlation"] = {"error": str(e), "columns": [], "matrix": [], "strong_pairs": []}
 
-    # 2. PCA 2-D projection on the preprocessed training features
-    results["pca"] = _compute_pca(X_train, y_train, feature_names, problem_type)
+    # ── 2. PCA ─────────────────────────────────────────────────────────
+    try:
+        results["pca"] = _compute_pca(X_train, y_train, feature_names, problem_type)
+    except Exception as e:
+        results["pca"] = {"error": str(e), "points": [], "explained_variance": [], "total_variance": 0}
 
-    # 3. K-Means + Elbow on preprocessed training features
-    results["clustering"] = _compute_clustering(X_train, y_train)
+    # ── 3. Clustering ──────────────────────────────────────────────────
+    try:
+        results["clustering"] = _compute_clustering(X_train, y_train, n_rows)
+    except Exception as e:
+        results["clustering"] = {"error": str(e), "optimal_k": 2, "elbow_curve": [], "cluster_points": [], "cluster_sizes": {}}
 
-    # 4. Feature importance via Random Forest
-    results["feature_importance"] = _compute_feature_importance(
-        X_train, y_train, feature_names, problem_type
-    )
+    # ── 4. Feature Importance ──────────────────────────────────────────
+    try:
+        results["feature_importance"] = _compute_feature_importance(
+            X_train, y_train, feature_names, problem_type
+        )
+    except Exception as e:
+        results["feature_importance"] = {"error": str(e), "features": [], "top_feature": None}
 
-    # 5. Association Rule Mining ← NEW (non-fatal: returns empty dicts on failure)
-    results["association_rules"] = run_association_mining(df)
+    # ── 5. Association Rules (skipped on large datasets) ───────────────
+    if n_rows > ROW_CAP_ASSOC:
+        results["association_rules"] = {
+            "frequent_itemsets": [],
+            "rules": [],
+            "note": f"Skipped — dataset has {n_rows} rows (limit: {ROW_CAP_ASSOC}).",
+        }
+    else:
+        try:
+            results["association_rules"] = run_association_mining(df)
+        except Exception as e:
+            results["association_rules"] = {"frequent_itemsets": [], "rules": [], "error": str(e)}
 
-    # 6. Outlier Detection ← NEW (non-fatal: returns safe defaults on failure)
-    results["outliers"] = detect_outliers(df)
+    # ── 6. Outlier Detection ───────────────────────────────────────────
+    try:
+        results["outliers"] = detect_outliers(df)
+    except Exception as e:
+        results["outliers"] = {"outlier_count": 0, "outlier_percentage": 0.0,
+                                "columns_with_outliers": [], "per_column": {}, "error": str(e)}
 
     return results
 
 
 # ---------------------------------------------------------------------------
-# 1. Pearson Correlation Matrix  (UNCHANGED)
+# Internal helper — convert entire DataFrame to safe numeric
+# ---------------------------------------------------------------------------
+
+def _safe_numeric_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ADDED v2.
+    Converts every column to float using LabelEncoder for categorical cols.
+    Fills remaining NaN with 0.  Returns a clean numeric-only DataFrame.
+    """
+    out = df.copy()
+    for col in out.columns:
+        if out[col].dtype == object or str(out[col].dtype) == "category":
+            le = LabelEncoder()
+            # Fill NaN first so LabelEncoder doesn't choke
+            out[col] = out[col].fillna("__missing__").astype(str)
+            out[col] = le.fit_transform(out[col]).astype(float)
+        else:
+            out[col] = pd.to_numeric(out[col], errors="coerce")
+    return out.fillna(0)
+
+
+# ---------------------------------------------------------------------------
+# 1. Pearson Correlation Matrix
 # ---------------------------------------------------------------------------
 
 def _compute_correlation(df: pd.DataFrame, target: str) -> dict:
     """
-    Computes Pearson correlation for all numeric columns (including target).
-
-    Returns:
-    {
-      "columns": [...],
-      "matrix" : [[...], ...],     ← 2-D list (rows × cols)
-      "strong_pairs": [
-          {"col_a": "x", "col_b": "y", "r": 0.87}, ...
-      ]
-    }
+    Pearson correlation on numeric columns.
+    CHANGED v2: uses _safe_numeric_df so categorical cols are included.
     """
-    numeric_df = df.select_dtypes(include=[np.number])
+    numeric_df = _safe_numeric_df(df)
 
-    # Keep target in if it is numeric (it usually is after preprocessing)
-    if target not in numeric_df.columns and target in df.columns:
-        try:
-            numeric_df[target] = pd.to_numeric(df[target], errors="coerce")
-        except Exception:
-            pass
+    # Limit to 20 columns max for readable heatmap
+    cols_to_use = numeric_df.columns.tolist()
+    if len(cols_to_use) > 20:
+        # Keep target + top-19 most-varied columns
+        variances   = numeric_df.var().drop(target, errors="ignore").nlargest(19).index.tolist()
+        cols_to_use = ([target] if target in numeric_df.columns else []) + variances
+        numeric_df  = numeric_df[cols_to_use]
 
-    corr_matrix = numeric_df.corr(method="pearson")
-    columns     = corr_matrix.columns.tolist()
+    corr_matrix   = numeric_df.corr(method="pearson")
+    columns        = corr_matrix.columns.tolist()
+    matrix_values  = np.nan_to_num(corr_matrix.values, nan=0.0).tolist()
 
-    # Replace NaN correlation values with 0 for JSON safety
-    matrix_values = np.nan_to_num(corr_matrix.values, nan=0.0).tolist()
-
-    # Extract strongly correlated pairs (excluding self-correlations)
     strong_pairs = []
-    cols = corr_matrix.columns.tolist()
-    for i in range(len(cols)):
-        for j in range(i + 1, len(cols)):
+    for i in range(len(columns)):
+        for j in range(i + 1, len(columns)):
             r = corr_matrix.iloc[i, j]
             if not np.isnan(r) and abs(r) >= CORR_STRONG:
                 strong_pairs.append({
-                    "col_a": cols[i],
-                    "col_b": cols[j],
+                    "col_a": columns[i],
+                    "col_b": columns[j],
                     "r"    : round(float(r), 4),
                 })
 
@@ -135,31 +187,28 @@ def _compute_correlation(df: pd.DataFrame, target: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 2. PCA — 2-D Projection  (UNCHANGED)
+# 2. PCA — 2-D Projection
 # ---------------------------------------------------------------------------
 
 def _compute_pca(
-    X_train: np.ndarray,
-    y_train: np.ndarray,
+    X_train     : np.ndarray,
+    y_train     : np.ndarray,
     feature_names: list[str],
     problem_type: str,
 ) -> dict:
     """
-    Projects training data onto the first 2 principal components.
-
-    Returns:
-    {
-      "points"             : [{"x": .., "y": .., "label": ..}, ...],
-      "explained_variance" : [0.42, 0.18],
-      "total_variance"     : 0.60,
-      "loadings"           : [{"feature": .., "pc1": .., "pc2": ..}, ...]
-    }
+    2-D PCA scatter.
+    CHANGED v2: scatter points capped at PCA_SCATTER_CAP for JSON size.
     """
     n_components = min(2, X_train.shape[1])
-    pca = PCA(n_components=n_components, random_state=PCA_RANDOM_STATE)
-    X_2d = pca.fit_transform(X_train)
+    pca          = PCA(n_components=n_components, random_state=PCA_RANDOM_STATE)
+    X_2d         = pca.fit_transform(X_train)
+    labels       = _get_scatter_labels(y_train, problem_type)
 
-    labels = _get_scatter_labels(y_train, problem_type)
+    # Subsample scatter for large datasets
+    n          = len(X_2d)
+    step       = max(1, n // PCA_SCATTER_CAP)
+    idx        = list(range(0, n, step))
 
     points = [
         {
@@ -167,19 +216,17 @@ def _compute_pca(
             "y"    : round(float(X_2d[i, 1]), 5) if n_components > 1 else 0.0,
             "label": str(labels[i]),
         }
-        for i in range(len(X_2d))
+        for i in idx
     ]
 
     explained = pca.explained_variance_ratio_.tolist()
 
     loadings = []
-    components = pca.components_
-    for idx, fname in enumerate(feature_names):
-        entry = {"feature": fname, "pc1": round(float(components[0, idx]), 4)}
+    for feat_idx, fname in enumerate(feature_names):
+        entry = {"feature": fname, "pc1": round(float(pca.components_[0, feat_idx]), 4)}
         if n_components > 1:
-            entry["pc2"] = round(float(components[1, idx]), 4)
+            entry["pc2"] = round(float(pca.components_[1, feat_idx]), 4)
         loadings.append(entry)
-
     loadings.sort(key=lambda x: abs(x["pc1"]), reverse=True)
 
     return {
@@ -191,7 +238,6 @@ def _compute_pca(
 
 
 def _get_scatter_labels(y: np.ndarray, problem_type: str) -> list:
-    """For regression targets, bin into 4 quantile buckets for colour-coding."""
     if "classification" in problem_type:
         return y.tolist()
     labels = pd.qcut(y, q=4, labels=["Q1", "Q2", "Q3", "Q4"], duplicates="drop")
@@ -199,35 +245,52 @@ def _get_scatter_labels(y: np.ndarray, problem_type: str) -> list:
 
 
 # ---------------------------------------------------------------------------
-# 3. K-Means Clustering + Elbow Method  (UNCHANGED)
+# 3. K-Means + Elbow + Silhouette Score
 # ---------------------------------------------------------------------------
 
 def _compute_clustering(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    n_rows : int,
 ) -> dict:
     """
-    Runs K-Means for K = 2 … MAX_KMEANS_K, records inertia (elbow curve),
-    picks the optimal K using the elbow heuristic, then returns cluster
-    assignments projected onto the first 2 PCA components for plotting.
+    K-Means with elbow detection.
+    ADDED v2:
+      • Dynamic K ceiling (scales with dataset size)
+      • Silhouette score on final clusters
+      • Scatter capped at PCA_SCATTER_CAP
     """
-    max_k    = min(MAX_KMEANS_K, X_train.shape[0] - 1)
-    k_range  = range(ELBOW_MIN_K, max_k + 1)
-    inertias = []
+    # Dynamic K ceiling — don't search more Ks than sqrt(rows/2)
+    dynamic_max_k = min(MAX_KMEANS_K, max(2, int(np.sqrt(n_rows / 2))))
+    max_k         = min(dynamic_max_k, X_train.shape[0] - 1)
+    k_range       = range(ELBOW_MIN_K, max_k + 1)
+    inertias      = []
 
     for k in k_range:
         km = KMeans(n_clusters=k, random_state=KMEANS_RANDOM, n_init=10)
         km.fit(X_train)
         inertias.append(float(km.inertia_))
 
-    optimal_k = _find_elbow_k(list(k_range), inertias)
-
-    final_km = KMeans(n_clusters=optimal_k, random_state=KMEANS_RANDOM, n_init=10)
+    optimal_k      = _find_elbow_k(list(k_range), inertias)
+    final_km       = KMeans(n_clusters=optimal_k, random_state=KMEANS_RANDOM, n_init=10)
     cluster_labels = final_km.fit_predict(X_train)
 
-    n_components = min(2, X_train.shape[1])
-    pca = PCA(n_components=n_components, random_state=PCA_RANDOM_STATE)
-    X_2d = pca.fit_transform(X_train)
+    # Silhouette score (ADDED v2)
+    sil_score = None
+    if optimal_k >= 2 and len(X_train) > optimal_k:
+        try:
+            sil_score = round(float(silhouette_score(X_train, cluster_labels, sample_size=min(500, len(X_train)))), 4)
+        except Exception:
+            sil_score = None
+
+    # PCA 2-D for scatter
+    n_components   = min(2, X_train.shape[1])
+    pca            = PCA(n_components=n_components, random_state=PCA_RANDOM_STATE)
+    X_2d           = pca.fit_transform(X_train)
+
+    n              = len(X_2d)
+    step           = max(1, n // PCA_SCATTER_CAP)
+    idx            = list(range(0, n, step))
 
     cluster_points = [
         {
@@ -235,7 +298,7 @@ def _compute_clustering(
             "y"      : round(float(X_2d[i, 1]), 5) if n_components > 1 else 0.0,
             "cluster": int(cluster_labels[i]),
         }
-        for i in range(len(X_2d))
+        for i in idx
     ]
 
     unique, counts = np.unique(cluster_labels, return_counts=True)
@@ -248,75 +311,64 @@ def _compute_clustering(
         cluster_means.append({
             "cluster"  : c,
             "size"     : int(mask.sum()),
-            "mean_norm": float(np.linalg.norm(mean_vec)),
+            "mean_norm": round(float(np.linalg.norm(mean_vec)), 4),
         })
 
     return {
-        "optimal_k"     : optimal_k,
-        "elbow_curve"   : [
+        "optimal_k"        : optimal_k,
+        "silhouette_score" : sil_score,          # ADDED v2
+        "elbow_curve"      : [
             {"k": int(k), "inertia": round(v, 2)}
             for k, v in zip(k_range, inertias)
         ],
-        "cluster_points": cluster_points,
-        "cluster_sizes" : cluster_sizes,
-        "cluster_means" : cluster_means,
+        "cluster_points"   : cluster_points,
+        "cluster_sizes"    : cluster_sizes,
+        "cluster_means"    : cluster_means,
     }
 
 
 def _find_elbow_k(k_range: list[int], inertias: list[float]) -> int:
-    """
-    Elbow detection via the 'knee' of the inertia curve.
-    Uses the distance-from-line (perpendicular) method.
-    """
+    """Perpendicular-distance elbow heuristic."""
     if len(inertias) < 3:
         return k_range[0]
 
-    x = np.array(k_range, dtype=float)
-    y = np.array(inertias, dtype=float)
-
+    x      = np.array(k_range, dtype=float)
+    y      = np.array(inertias, dtype=float)
     x_norm = (x - x.min()) / (x.max() - x.min() + 1e-9)
     y_norm = (y - y.min()) / (y.max() - y.min() + 1e-9)
 
-    vec_line      = np.array([x_norm[-1] - x_norm[0], y_norm[-1] - y_norm[0]])
-    vec_line_norm = vec_line / (np.linalg.norm(vec_line) + 1e-9)
+    vec       = np.array([x_norm[-1] - x_norm[0], y_norm[-1] - y_norm[0]])
+    vec_norm  = vec / (np.linalg.norm(vec) + 1e-9)
 
     distances = []
     for i in range(len(x_norm)):
-        point = np.array([x_norm[i] - x_norm[0], y_norm[i] - y_norm[0]])
-        proj  = np.dot(point, vec_line_norm) * vec_line_norm
-        dist  = np.linalg.norm(point - proj)
-        distances.append(dist)
+        pt   = np.array([x_norm[i] - x_norm[0], y_norm[i] - y_norm[0]])
+        proj = np.dot(pt, vec_norm) * vec_norm
+        distances.append(float(np.linalg.norm(pt - proj)))
 
-    elbow_idx = int(np.argmax(distances))
-    return int(k_range[elbow_idx])
+    return int(k_range[int(np.argmax(distances))])
 
 
 # ---------------------------------------------------------------------------
-# 4. Feature Importance — Random Forest  (UNCHANGED)
+# 4. Feature Importance — Random Forest
 # ---------------------------------------------------------------------------
 
 def _compute_feature_importance(
-    X_train: np.ndarray,
-    y_train: np.ndarray,
+    X_train     : np.ndarray,
+    y_train     : np.ndarray,
     feature_names: list[str],
     problem_type: str,
 ) -> dict:
-    """
-    Trains a fast Random Forest and extracts Gini-based feature importances.
-    """
-    if "classification" in problem_type:
-        rf = RandomForestClassifier(
-            n_estimators=100, max_depth=8, random_state=42, n_jobs=-1
-        )
-    else:
-        rf = RandomForestRegressor(
-            n_estimators=100, max_depth=8, random_state=42, n_jobs=-1
-        )
-
+    """Random-Forest Gini importance. Unchanged logic, wrapped by caller."""
+    rf = (
+        RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42, n_jobs=-1)
+        if "classification" in problem_type
+        else RandomForestRegressor(n_estimators=100, max_depth=8, random_state=42, n_jobs=-1)
+    )
     rf.fit(X_train, y_train)
-    importances = rf.feature_importances_
 
-    sorted_idx = np.argsort(importances)[::-1]
+    importances = rf.feature_importances_
+    sorted_idx  = np.argsort(importances)[::-1]
 
     features = [
         {
@@ -327,240 +379,135 @@ def _compute_feature_importance(
         for rank, i in enumerate(sorted_idx[:MAX_FEATURES_PLOT])
     ]
 
-    top_feature = features[0]["feature"] if features else None
-
     return {
         "features"   : features,
-        "top_feature": top_feature,
+        "top_feature": features[0]["feature"] if features else None,
     }
 
 
 # ---------------------------------------------------------------------------
-# 5. Association Rule Mining — Apriori  ← NEW
+# 5. Association Rule Mining — Apriori
 # ---------------------------------------------------------------------------
 
 def run_association_mining(df: pd.DataFrame) -> dict:
     """
-    Discovers frequent itemsets and association rules from categorical columns.
-
-    Steps:
-      1. Select only object/category columns
-      2. Drop columns with > ASSOC_MAX_UNIQUE unique values (too sparse)
-      3. One-hot encode with pd.get_dummies()
-      4. Run Apriori (min_support=0.1) → frequent itemsets
-      5. Generate rules (min_confidence=0.5), sort by confidence DESC
-      6. Return top ASSOC_MAX_RULES rules
-
-    Returns safe empty-list structure if dataset has no suitable columns,
-    mlxtend is not installed, or any other error occurs.
+    Apriori on categorical columns only.
+    CHANGED v2: stricter guards, better error messages, skips high-cardinality cols.
+    Caller in run_data_mining() already gates on ROW_CAP_ASSOC.
     """
-    # ── Safe empty result returned on any early exit ───────────────────
     empty = {"frequent_itemsets": [], "rules": []}
 
     try:
         from mlxtend.frequent_patterns import apriori, association_rules
     except ImportError:
-        # mlxtend not installed — return gracefully, don't crash the pipeline
-        return {**empty, "error": "mlxtend not installed. Run: pip install mlxtend"}
+        return {**empty, "error": "mlxtend not installed — run: pip install mlxtend==0.23.1"}
 
     try:
-        # ── 1. Select categorical columns ─────────────────────────────
-        cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        cat_cols   = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        usable     = [c for c in cat_cols if 2 <= df[c].nunique(dropna=True) <= ASSOC_MAX_UNIQUE]
 
-        if not cat_cols:
-            return {**empty, "note": "No categorical columns found for association mining."}
+        if not usable:
+            return {**empty, "note": "No suitable categorical columns for association mining."}
 
-        # ── 2. Drop high-cardinality columns ──────────────────────────
-        # High unique counts (e.g. IDs, names) produce meaningless rules
-        usable_cols = [
-            col for col in cat_cols
-            if df[col].nunique(dropna=True) <= ASSOC_MAX_UNIQUE
-        ]
-
-        if not usable_cols:
-            return {
-                **empty,
-                "note": (
-                    f"All categorical columns exceed {ASSOC_MAX_UNIQUE} unique values. "
-                    "Cannot generate meaningful association rules."
-                ),
-            }
-
-        # ── 3. One-hot encode ─────────────────────────────────────────
         ohe_df = pd.get_dummies(
-            df[usable_cols].fillna("__missing__"),
-            prefix_sep="=",         # Column format: "colname=value"
-        ).astype(bool)              # mlxtend requires boolean dtype
+            df[usable].fillna("__missing__").astype(str),
+            prefix_sep="=",
+        ).astype(bool)
 
-        # Need at least 10 rows for meaningful support values
         if len(ohe_df) < 10:
-            return {**empty, "note": "Dataset too small for association mining (< 10 rows)."}
+            return {**empty, "note": "Too few rows for association mining."}
 
-        # ── 4. Frequent itemsets via Apriori ──────────────────────────
-        frequent_itemsets = apriori(
-            ohe_df,
-            min_support     = ASSOC_MIN_SUPPORT,
-            use_colnames    = True,
-            max_len         = 3,     # limit itemset length to keep results readable
-        )
+        freq = apriori(ohe_df, min_support=ASSOC_MIN_SUPPORT,
+                       use_colnames=True, max_len=3)
 
-        if frequent_itemsets.empty:
-            return {
-                **empty,
-                "note": (
-                    f"No frequent itemsets found at min_support={ASSOC_MIN_SUPPORT}. "
-                    "Try a dataset with more repeated categorical patterns."
-                ),
-            }
+        if freq.empty:
+            return {**empty, "note": f"No frequent itemsets found at support ≥ {ASSOC_MIN_SUPPORT}."}
 
-        # ── 5. Generate association rules ─────────────────────────────
         rules_df = association_rules(
-            frequent_itemsets,
-            metric          = "confidence",
-            min_threshold   = ASSOC_MIN_CONFIDENCE,
-            num_itemsets    = len(frequent_itemsets),
+            freq,
+            metric="confidence",
+            min_threshold=ASSOC_MIN_CONFIDENCE
+            ).sort_values(["confidence", "lift"], ascending=False).head(ASSOC_MAX_RULES)
+
+        serialised_itemsets = sorted(
+            [{"items": sorted(list(r["itemsets"])), "support": round(float(r["support"]), 4)}
+             for _, r in freq.iterrows()],
+            key=lambda x: x["support"], reverse=True,
         )
 
-        # Sort by confidence DESC, then lift DESC as tiebreaker
-        rules_df = rules_df.sort_values(
-            ["confidence", "lift"],
-            ascending=[False, False],
-        ).head(ASSOC_MAX_RULES)
-
-        # ── 6. Serialise frequent itemsets ────────────────────────────
-        serialised_itemsets = [
-            {
-                "items"  : sorted(list(row["itemsets"])),   # frozenset → sorted list
-                "support": round(float(row["support"]), 4),
-            }
-            for _, row in frequent_itemsets.iterrows()
-        ]
-
-        # Sort by support DESC for display
-        serialised_itemsets.sort(key=lambda x: x["support"], reverse=True)
-
-        # ── 7. Serialise rules ────────────────────────────────────────
         serialised_rules = [
             {
-                "antecedents": sorted(list(row["antecedents"])),
-                "consequents": sorted(list(row["consequents"])),
-                "support"    : round(float(row["support"]),    4),
-                "confidence" : round(float(row["confidence"]), 4),
-                "lift"       : round(float(row["lift"]),       4),
+                "antecedents": sorted(list(r["antecedents"])),
+                "consequents": sorted(list(r["consequents"])),
+                "support"    : round(float(r["support"]),    4),
+                "confidence" : round(float(r["confidence"]), 4),
+                "lift"       : round(float(r["lift"]),       4),
             }
-            for _, row in rules_df.iterrows()
+            for _, r in rules_df.iterrows()
         ]
 
-        return {
-            "frequent_itemsets": serialised_itemsets,
-            "rules"            : serialised_rules,
-        }
+        return {"frequent_itemsets": serialised_itemsets, "rules": serialised_rules}
 
     except Exception as exc:
-        # Non-fatal: return empty result with error message
         return {**empty, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
-# 6. Outlier Detection — IQR Method  ← NEW
+# 6. Outlier Detection — IQR
 # ---------------------------------------------------------------------------
 
 def detect_outliers(df: pd.DataFrame) -> dict:
     """
-    Detects outliers in every numeric column using the Tukey IQR fence method.
-
-    For each numeric column:
-      Q1  = 25th percentile  (ignoring NaN)
-      Q3  = 75th percentile  (ignoring NaN)
-      IQR = Q3 − Q1
-      lower_bound = Q1 − 1.5 × IQR
-      upper_bound = Q3 + 1.5 × IQR
-      outlier     = value < lower_bound  OR  value > upper_bound
-
-    Returns:
-    {
-      "outlier_count"          : int,       total outlier cells across all columns
-      "outlier_percentage"     : float,     outlier_count / total_non_null_values * 100
-      "columns_with_outliers"  : ["col"],   columns that have at least one outlier
-      "per_column"             : {          per-column breakdown
-          "col_name": {
-              "outlier_count"    : int,
-              "outlier_pct"      : float,
-              "lower_bound"      : float,
-              "upper_bound"      : float,
-              "min"              : float,
-              "max"              : float,
-          }, ...
-      }
-    }
-
-    Returns safe defaults on empty dataset or any error.
+    IQR fence outlier detection.
+    CHANGED v2: skips columns with < 4 non-null values, never crashes.
     """
-    safe_default = {
-        "outlier_count"        : 0,
-        "outlier_percentage"   : 0.0,
-        "columns_with_outliers": [],
-        "per_column"           : {},
-    }
-
+    safe = {"outlier_count": 0, "outlier_percentage": 0.0,
+            "columns_with_outliers": [], "per_column": {}}
     try:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-
+        numeric_cols   = df.select_dtypes(include=[np.number]).columns.tolist()
         if not numeric_cols:
-            return {**safe_default, "note": "No numeric columns found for outlier detection."}
+            return {**safe, "note": "No numeric columns."}
 
-        total_outliers   = 0
-        total_non_null   = 0
-        cols_with_outliers = []
-        per_column       = {}
+        total_outliers = 0
+        total_valid    = 0
+        cols_flagged   = []
+        per_column     = {}
 
         for col in numeric_cols:
             series = df[col].dropna()
-
             if len(series) < 4:
-                # Too few values to compute meaningful quartiles
                 continue
 
             q1  = float(series.quantile(0.25))
             q3  = float(series.quantile(0.75))
             iqr = q3 - q1
+            lo  = q1 - IQR_MULTIPLIER * iqr
+            hi  = q3 + IQR_MULTIPLIER * iqr
 
-            lower_bound = q1 - IQR_MULTIPLIER * iqr
-            upper_bound = q3 + IQR_MULTIPLIER * iqr
+            mask       = (series < lo) | (series > hi)
+            n_out      = int(mask.sum())
+            n_total    = len(series)
+            pct        = round(n_out / n_total * 100, 2) if n_total else 0.0
 
-            # Count values outside the fence (ignores NaN — already dropped)
-            outlier_mask  = (series < lower_bound) | (series > upper_bound)
-            n_outliers    = int(outlier_mask.sum())
-            n_total       = len(series)
-            outlier_pct   = round(n_outliers / n_total * 100, 2) if n_total else 0.0
-
-            total_outliers += n_outliers
-            total_non_null += n_total
-
+            total_outliers += n_out
+            total_valid    += n_total
             per_column[col] = {
-                "outlier_count": n_outliers,
-                "outlier_pct"  : outlier_pct,
-                "lower_bound"  : round(lower_bound, 4),
-                "upper_bound"  : round(upper_bound, 4),
+                "outlier_count": n_out,
+                "outlier_pct"  : pct,
+                "lower_bound"  : round(lo, 4),
+                "upper_bound"  : round(hi, 4),
                 "min"          : round(float(series.min()), 4),
                 "max"          : round(float(series.max()), 4),
             }
+            if n_out > 0:
+                cols_flagged.append(col)
 
-            if n_outliers > 0:
-                cols_with_outliers.append(col)
-
-        overall_pct = (
-            round(total_outliers / total_non_null * 100, 2)
-            if total_non_null > 0
-            else 0.0
-        )
-
+        overall_pct = round(total_outliers / total_valid * 100, 2) if total_valid else 0.0
         return {
             "outlier_count"        : total_outliers,
             "outlier_percentage"   : overall_pct,
-            "columns_with_outliers": cols_with_outliers,
+            "columns_with_outliers": cols_flagged,
             "per_column"           : per_column,
         }
-
     except Exception as exc:
-        return {**safe_default, "error": str(exc)}
+        return {**safe, "error": str(exc)}

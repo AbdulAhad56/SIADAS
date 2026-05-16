@@ -6,9 +6,9 @@ import { useMemo } from "react";
 import { buildHeatmapCells, correlationToColor } from "@/utils/chartHelpers";
 import { shortenLabel } from "@/utils/formatters";
 
-const CELL_SIZE    = 38;
-const LABEL_OFFSET = 90;   // px reserved for row/col labels
-const MAX_COLS     = 14;   // cap to avoid overflow on large datasets
+const CELL_SIZE    = 20;
+const LABEL_OFFSET = 90;  // px reserved for row/col labels
+const MAX_COLS     = 12;   // cap to avoid overflow on large datasets
 
 export default function CorrelationHeatmap({ correlation }) {
   if (!correlation?.columns?.length) {
@@ -18,7 +18,7 @@ export default function CorrelationHeatmap({ correlation }) {
   // Limit to MAX_COLS most-varied columns
   const columns  = correlation.columns.slice(0, MAX_COLS);
   const nCols    = columns.length;
-  const cellSize = Math.max(28, Math.min(CELL_SIZE, Math.floor(540 / nCols)));
+  const cellSize = Math.max(32, Math.min(CELL_SIZE, Math.floor(680 / nCols)));
 
   const cells    = useMemo(() => buildHeatmapCells({
     columns,
@@ -29,25 +29,27 @@ export default function CorrelationHeatmap({ correlation }) {
   const gridH = nCols * cellSize;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Heatmap SVG */}
-      <div className="overflow-x-auto scrollbar-thin">
-        <div style={{ minWidth: LABEL_OFFSET + gridW + 20 }}>
-          <svg
-            width={LABEL_OFFSET + gridW}
-            height={LABEL_OFFSET + gridH}
-            style={{ fontFamily: "var(--font-sans)" }}
-          >
-            {/* Column labels (rotated, top) */}
+      <div className="overflow-x-auto scrollbar-thin -mx-6 px-6">
+        <div className="flex justify-center items-center py-1">
+          <div style={{ minWidth: LABEL_OFFSET + gridW}}>
+            <svg
+              width={LABEL_OFFSET + gridW + 20}
+              height={LABEL_OFFSET + gridH}
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+            {/* Column labels (rotated, top - starting from heatmap going up) */}
             {columns.map((col, ci) => (
               <text
                 key={`ch-${ci}`}
                 x={LABEL_OFFSET + ci * cellSize + cellSize / 2}
-                y={LABEL_OFFSET - 6}
-                textAnchor="end"
-                fontSize={Math.max(9, cellSize * 0.28)}
+                y={LABEL_OFFSET - 12}
+                textAnchor="start"
+                fontSize={Math.max(9, cellSize * 0.24)}
                 fill="var(--color-text-secondary)"
-                transform={`rotate(-45 ${LABEL_OFFSET + ci * cellSize + cellSize / 2} ${LABEL_OFFSET - 6})`}
+                fontWeight="600"
+                transform={`rotate(-45 ${LABEL_OFFSET + ci * cellSize + cellSize / 2} ${LABEL_OFFSET})`}
               >
                 {shortenLabel(col, 12)}
               </text>
@@ -57,13 +59,14 @@ export default function CorrelationHeatmap({ correlation }) {
             {columns.map((col, ri) => (
               <text
                 key={`rv-${ri}`}
-                x={LABEL_OFFSET - 6}
+                x={LABEL_OFFSET - 12}
                 y={LABEL_OFFSET + ri * cellSize + cellSize / 2 + 4}
                 textAnchor="end"
-                fontSize={Math.max(9, cellSize * 0.28)}
+                fontSize={Math.max(9, cellSize * 0.24)}
                 fill="var(--color-text-secondary)"
+                fontWeight="600"
               >
-                {shortenLabel(col, 12)}
+                {shortenLabel(col, 14)}
               </text>
             ))}
 
@@ -74,26 +77,30 @@ export default function CorrelationHeatmap({ correlation }) {
               if (ci < 0 || ri < 0) return null;
               const px = LABEL_OFFSET + ci * cellSize;
               const py = LABEL_OFFSET + ri * cellSize;
-              const showVal = cellSize >= 32 && nCols <= 10;
+              const showVal = true;
 
               return (
                 <g key={idx}>
                   <rect
                     x={px} y={py}
-                    width={cellSize - 1} height={cellSize - 1}
+                    width={cellSize - 1.5} height={cellSize - 1.5}
                     fill={correlationToColor(r)}
-                    rx={3}
+                    rx={5}
+                    stroke="rgba(255,255,255,0.35)"
+                    strokeWidth="0.6"
                   >
-                    <title>{`${xFull} × ${yFull}: ${r.toFixed(3)}`}</title>
+                    <title>{`${xFull} ↔ ${yFull}\nCorrelation: ${r.toFixed(3)}`}</title>
                   </rect>
                   {showVal && (
                     <text
                       x={px + cellSize / 2}
                       y={py + cellSize / 2 + 4}
                       textAnchor="middle"
-                      fontSize={9}
-                      fontWeight="600"
-                      fill={Math.abs(r) > 0.5 ? "#fff" : "var(--color-text-secondary)"}
+                      fontSize={Math.max(8, cellSize * 0.32)}
+                      fontWeight="400"
+                      fill={Math.abs(r) > 0.4 ? "#fff" : "var(--color-text-primary)"}
+                      pointerEvents="none"
+                      userSelect="none"
                     >
                       {r.toFixed(2)}
                     </text>
@@ -102,6 +109,7 @@ export default function CorrelationHeatmap({ correlation }) {
               );
             })}
           </svg>
+          </div>
         </div>
       </div>
 
@@ -122,18 +130,15 @@ export default function CorrelationHeatmap({ correlation }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-surface border-b border-surface-border">
-                  <th className="px-4 py-2.5 text-left font-semibold text-text-primary">Feature A</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-text-primary">Feature B</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-text-primary">r</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-text-primary">Feature Pair</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-text-primary">Correlation (r)</th>
                   <th className="px-4 py-2.5 text-left font-semibold text-text-primary">Strength</th>
                 </tr>
               </thead>
               <tbody>
                 {correlation.strong_pairs.slice(0, 8).map(({ col_a, col_b, r }, i) => (
-                  <tr key={i} className={`border-b border-surface-border}
-                    ${i % 2 === 0 ? "bg-white" : "bg-surface"}`}>
-                    <td className="px-4 py-2 font-mono text-xs text-text-secondary">{col_a}</td>
-                    <td className="px-4 py-2 font-mono text-xs text-text-secondary">{col_b}</td>
+                  <tr key={i} className={`border-b border-surface-border ${i % 2 === 0 ? "bg-white" : "bg-surface"}`}>
+                    <td className="px-4 py-2 font-mono text-xs text-text-secondary">{col_a} ↔ {col_b}</td>
                     <td className="px-4 py-2 font-mono text-xs font-semibold"
                         style={{ color: r > 0 ? "var(--color-primary)" : "var(--color-danger)" }}>
                       {r > 0 ? "+" : ""}{r.toFixed(3)}

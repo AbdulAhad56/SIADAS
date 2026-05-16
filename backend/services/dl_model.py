@@ -1,28 +1,25 @@
 """
-SAIDAS — services/dl_model.py
+SAIDAS — services/dl_model.py  (STABILISED v2)
 
-Dynamic Keras MLP:
-  Input  → Dense(64, relu) → Dropout(0.25) → Dense(32, relu) → Output
+Dynamic Keras MLP — safe for all dataset sizes.
 
-Architecture adapts automatically:
-  binary_classification     → sigmoid output, binary_crossentropy loss
-  multiclass_classification → softmax output, sparse_categorical_crossentropy
-  regression                → linear output,  mean_squared_error
-
-Includes:
-  - Adam optimiser
-  - EarlyStopping on val_loss (patience=10)
-  - Returns training history + final metrics
+CHANGES IN THIS VERSION
+───────────────────────
+• Pre-flight safety checks   NEW — empty, NaN, non-numeric, single-class guards
+• try/except around fit()    CHANGED — training failure returns safe skip dict
+• try/except around predict()CHANGED — prediction failure handled gracefully
+• is_large flag              ADDED — skips DL when dataset > ROW_CAP rows
+• Keras 3 / TF 2.16+        KEPT — `import keras` not `from tensorflow import keras`
 """
 
 import os
 import numpy as np
 
-# Suppress TensorFlow info/warning logs
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
+import keras
+from keras import layers, callbacks
 import tensorflow as tf
-from keras import layers, callbacks, models, optimizers
 
 from sklearn.metrics import (
     accuracy_score,
@@ -47,10 +44,25 @@ HIDDEN_2_UNITS = 32
 DROPOUT_RATE   = 0.25
 LEARNING_RATE  = 0.001
 BATCH_SIZE     = 32
-MAX_EPOCHS     = 150
-EARLY_STOP_PAT = 10     # EarlyStopping patience
-VAL_SPLIT      = 0.15   # Fraction of training data used for validation
+MAX_EPOCHS     = 100       # Reduced from 150 — faster with early stopping
+EARLY_STOP_PAT = 10
+VAL_SPLIT      = 0.15
 RANDOM_STATE   = 42
+
+# Row threshold — skip DL above this (process.py also enforces this)
+DL_ROW_CAP     = 1_000
+
+
+# ---------------------------------------------------------------------------
+# _SKIP helper — returns a consistent "skipped" dict
+# ---------------------------------------------------------------------------
+
+def _skip(reason: str) -> dict:
+    return {
+        "model"  : "Deep Learning (MLP)",
+        "skipped": True,
+        "reason" : reason,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -58,113 +70,108 @@ RANDOM_STATE   = 42
 # ---------------------------------------------------------------------------
 
 def train_dl_model(
-    X_train: np.ndarray,
-    X_test : np.ndarray,
-    y_train: np.ndarray,
-    y_test : np.ndarray,
+    X_train     : np.ndarray,
+    X_test      : np.ndarray,
+    y_train     : np.ndarray,
+    y_test      : np.ndarray,
     problem_type: str,
-    small_data=False,
+    is_large    : bool = False,   # ADDED v2 — set by process.py
 ) -> dict:
     """
     Builds, compiles, and trains a dynamic Keras MLP.
-
-    Returns a dict with:
-      - model architecture description
-      - training history (loss + val_loss per epoch)
-      - final evaluation metrics on the test set
+    Returns a safe skip dict instead of raising on any failure.
     """
-    tf.random.set_seed(RANDOM_STATE)
-    np.random.seed(RANDOM_STATE)
 
-    if small_data and len(X_train) < 50:
-        return {
-            "model": "Deep Learning (MLP)",
-            "skipped": True,
-            "reason": "Dataset too small for deep learning"
-            }
+    # ── Pre-flight safety checks (ADDED v2) ────────────────────────────
 
-    n_features = X_train.shape[1]
-    n_classes  = get_num_classes(
-        # Convert y_train to a pandas Series temporarily for the helper
-        __import__("pandas").Series(y_train)
-    )
+    if is_large:
+        return _skip(f"Dataset exceeds {DL_ROW_CAP} rows — DL skipped to avoid timeout.")
 
-    # ------------------------------------------------------------------
-    # Build model
-    # ------------------------------------------------------------------
-    model = _build_mlp(n_features, n_classes, problem_type)
+    if X_train is None or len(X_train) == 0:
+        return _skip("Training set is empty.")
 
-    # ------------------------------------------------------------------
-    # Compile
-    # ------------------------------------------------------------------
-    loss_fn   = get_loss_function(problem_type)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE)
+    if len(X_train) < 30:
+        return _skip(f"Too few training samples ({len(X_train)}) for deep learning.")
 
-    # Choose metric logged during training
+    # Guard: non-numeric data
+    if not np.issubdtype(X_train.dtype, np.number):
+        return _skip("Training features contain non-numeric data.")
+
+    # Guard: NaN / Inf in features
+    if not np.isfinite(X_train).all():
+        return _skip("Training features contain NaN or Inf values.")
+
+    # Guard: NaN in labels
+    if np.isnan(y_train).any():
+        return _skip("Target column contains NaN values.")
+
+    # Guard: single-class target (classification only)
     if "classification" in problem_type:
-        train_metrics = ["accuracy"]
-    else:
-        train_metrics = ["mae"]
+        n_unique = len(np.unique(y_train))
+        if n_unique < 2:
+            return _skip(f"Target has only {n_unique} unique class — cannot train classifier.")
 
-    model.compile(
-        optimizer = optimizer,
-        loss      = loss_fn,
-        metrics   = train_metrics,
-    )
+    # ── Build + compile ─────────────────────────────────────────────────
+    try:
+        tf.random.set_seed(RANDOM_STATE)
+        np.random.seed(RANDOM_STATE)
 
-    # ------------------------------------------------------------------
-    # Callbacks
-    # ------------------------------------------------------------------
-    early_stop = callbacks.EarlyStopping(
-        monitor             = "val_loss",
-        patience            = EARLY_STOP_PAT,
-        restore_best_weights= True,
-        verbose             = 0,
-    )
+        n_features = X_train.shape[1]
+        n_classes  = get_num_classes(__import__("pandas").Series(y_train))
+        model      = _build_mlp(n_features, n_classes, problem_type)
 
-    reduce_lr = callbacks.ReduceLROnPlateau(
-        monitor  = "val_loss",
-        factor   = 0.5,
-        patience = 5,
-        min_lr   = 1e-6,
-        verbose  = 0,
-    )
+        model.compile(
+            optimizer = keras.optimizers.Adam(learning_rate=LEARNING_RATE),
+            loss      = get_loss_function(problem_type),
+            metrics   = ["accuracy"] if "classification" in problem_type else ["mae"],
+        )
+    except Exception as exc:
+        return _skip(f"Model build/compile failed: {str(exc)}")
 
-    # ------------------------------------------------------------------
-    # Train
-    # ------------------------------------------------------------------
-    epochs = 50 if small_data else MAX_EPOCHS
+    # ── Training (WRAPPED in try/except) ────────────────────────────────
+    try:
+        early_stop = callbacks.EarlyStopping(
+            monitor              = "val_loss",
+            patience             = EARLY_STOP_PAT,
+            restore_best_weights = True,
+            verbose              = 0,
+        )
+        reduce_lr = callbacks.ReduceLROnPlateau(
+            monitor  = "val_loss",
+            factor   = 0.5,
+            patience = 5,
+            min_lr   = 1e-6,
+            verbose  = 0,
+        )
 
-    history = model.fit(
-        X_train, y_train,
-        epochs          = epochs,
-        batch_size      = BATCH_SIZE,
-        validation_split= VAL_SPLIT,
-        callbacks       = [early_stop, reduce_lr],
-        verbose         = 0,
-    )
+        history = model.fit(
+            X_train, y_train,
+            epochs           = MAX_EPOCHS,
+            batch_size       = BATCH_SIZE,
+            validation_split = VAL_SPLIT,
+            callbacks        = [early_stop, reduce_lr],
+            verbose          = 0,
+        )
+        epochs_trained = len(history.history["loss"])
 
-    epochs_trained = len(history.history["loss"])
+    except Exception as exc:
+        return _skip(f"Training failed: {str(exc)}")
 
-    # ------------------------------------------------------------------
-    # Evaluate on test set
-    # ------------------------------------------------------------------
-    y_pred_raw = model.predict(X_test, verbose=0)
-    metrics    = _compute_metrics(y_test, y_pred_raw, problem_type)
+    # ── Prediction + metrics (WRAPPED in try/except) ─────────────────────
+    try:
+        y_pred_raw = model.predict(X_test, verbose=0)
+        metrics    = _compute_metrics(y_test, y_pred_raw, problem_type)
+    except Exception as exc:
+        return _skip(f"Prediction/evaluation failed: {str(exc)}")
 
-    # ------------------------------------------------------------------
-    # Training history (truncated for JSON payload size)
-    # ------------------------------------------------------------------
+    # ── Build response ───────────────────────────────────────────────────
     train_history = _build_history_payload(history.history, epochs_trained)
 
-    # ------------------------------------------------------------------
-    # Architecture summary
-    # ------------------------------------------------------------------
     architecture = {
-        "input_units"  : n_features,
-        "hidden_layers": [
+        "input_units"      : int(n_features),
+        "hidden_layers"    : [
             {"units": HIDDEN_1_UNITS, "activation": "relu"},
-            {"type": "dropout", "rate": DROPOUT_RATE},
+            {"type" : "dropout",      "rate"      : DROPOUT_RATE},
             {"units": HIDDEN_2_UNITS, "activation": "relu"},
         ],
         "output_units"     : get_output_units(problem_type, n_classes),
@@ -190,39 +197,27 @@ def _build_mlp(
     n_features  : int,
     n_classes   : int,
     problem_type: str,
-) -> tf.keras.Model:
-    """
-    Constructs a sequential MLP with the structure:
-      Input(n_features)
-        → Dense(64, relu) → Dropout(0.25)
-        → Dense(32, relu)
-        → Dense(output_units, output_activation)
-    """
+) -> keras.Model:
     output_units      = get_output_units(problem_type, n_classes)
     output_activation = get_output_activation(problem_type)
 
-    model = tf.keras.Sequential(
+    return keras.Sequential(
         [
-            tf.keras.layers.Input(shape=(n_features,), name="input"),
-
-            tf.keras.layers.Dense(HIDDEN_1_UNITS, activation="relu", name="hidden_1"),
-            tf.keras.layers.BatchNormalization(name="bn_1"),
-            tf.keras.layers.Dropout(DROPOUT_RATE, name="dropout_1"),
-
-            tf.keras.layers.Dense(HIDDEN_2_UNITS, activation="relu", name="hidden_2"),
-            tf.keras.layers.BatchNormalization(name="bn_2"),
-            tf.keras.layers.Dropout(DROPOUT_RATE, name="dropout_2"),
-
-            tf.keras.layers.Dense(output_units, activation=output_activation, name="output"),
+            layers.Input(shape=(n_features,), name="input"),
+            layers.Dense(HIDDEN_1_UNITS, activation="relu", name="hidden_1"),
+            layers.BatchNormalization(name="bn_1"),
+            layers.Dropout(DROPOUT_RATE, name="dropout_1"),
+            layers.Dense(HIDDEN_2_UNITS, activation="relu", name="hidden_2"),
+            layers.BatchNormalization(name="bn_2"),
+            layers.Dropout(DROPOUT_RATE, name="dropout_2"),
+            layers.Dense(output_units, activation=output_activation, name="output"),
         ],
         name="saidas_mlp",
     )
 
-    return model
-
 
 # ---------------------------------------------------------------------------
-# Internal: compute test metrics
+# Internal: metrics
 # ---------------------------------------------------------------------------
 
 def _compute_metrics(
@@ -230,58 +225,40 @@ def _compute_metrics(
     y_pred_raw: np.ndarray,
     problem_type: str,
 ) -> dict:
-    """Converts raw model output to final task-specific metrics."""
-
     if problem_type == "binary_classification":
         y_pred = (y_pred_raw.flatten() >= 0.5).astype(int)
-        return {
-            "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
-        }
+        return {"accuracy": round(float(accuracy_score(y_true, y_pred)), 4)}
 
     if problem_type == "multiclass_classification":
         y_pred = np.argmax(y_pred_raw, axis=1)
-        return {
-            "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
-        }
+        return {"accuracy": round(float(accuracy_score(y_true, y_pred)), 4)}
 
-    # Regression
     y_pred = y_pred_raw.flatten()
-    rmse   = float(np.sqrt(mean_squared_error(y_true, y_pred)))
-    mae    = float(mean_absolute_error(y_true, y_pred))
-    r2     = float(r2_score(y_true, y_pred))
-
     return {
-        "rmse": round(rmse, 4),
-        "mae" : round(mae, 4),
-        "r2"  : round(r2, 4),
+        "rmse": round(float(np.sqrt(mean_squared_error(y_true, y_pred))), 4),
+        "mae" : round(float(mean_absolute_error(y_true, y_pred)), 4),
+        "r2"  : round(float(r2_score(y_true, y_pred)), 4),
     }
 
 
 # ---------------------------------------------------------------------------
-# Internal: build history payload
+# Internal: history payload
 # ---------------------------------------------------------------------------
 
 def _build_history_payload(history_dict: dict, epochs_trained: int) -> dict:
-    """
-    Converts Keras history dict to a JSON-safe format for the frontend chart.
-    Caps at 100 epochs to keep payload size reasonable.
-    """
     step = max(1, epochs_trained // 100)
 
-    def _sample(values: list) -> list:
-        return [round(float(v), 5) for v in values[::step]]
+    def _sample(vals):
+        return [round(float(v), 5) for v in vals[::step]]
 
     payload = {
-        "epochs"   : list(range(1, epochs_trained + 1, step)),
-        "loss"     : _sample(history_dict.get("loss", [])),
-        "val_loss" : _sample(history_dict.get("val_loss", [])),
+        "epochs"  : list(range(1, epochs_trained + 1, step)),
+        "loss"    : _sample(history_dict.get("loss",     [])),
+        "val_loss": _sample(history_dict.get("val_loss", [])),
     }
-
-    # Include accuracy or MAE if present
     if "accuracy" in history_dict:
         payload["accuracy"]     = _sample(history_dict["accuracy"])
         payload["val_accuracy"] = _sample(history_dict.get("val_accuracy", []))
-
     if "mae" in history_dict:
         payload["mae"]     = _sample(history_dict["mae"])
         payload["val_mae"] = _sample(history_dict.get("val_mae", []))

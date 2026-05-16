@@ -140,6 +140,12 @@ async def upload_csv(file: UploadFile = File(...)):
     # Null counts per column (useful for frontend warnings)
     null_counts = df.isnull().sum().to_dict()
 
+    # Unique values per column (helps frontend suggest target columns)
+    unique_counts = {
+        col: int(df[col].nunique(dropna=True))
+        for col in columns
+    }
+
     response_data = {
         "filename": file.filename,
         "rows": int(df.shape[0]),
@@ -150,6 +156,7 @@ async def upload_csv(file: UploadFile = File(...)):
         "preview": preview_records,
         "dataset": full_records,   # Full data forwarded to /process
         "saved_path": saved_path,
+        "unique_counts": unique_counts,
     }
 
     return build_success_response(
