@@ -3,11 +3,17 @@
 // Uses Recharts ScatterChart
 
 import {
-  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from "recharts";
 import { buildPCASeriesByLabel } from "@/utils/chartHelpers";
-import { CHART_COLORS }          from "@/utils/constants";
+import { CHART_COLORS } from "@/utils/constants";
 
 // Custom tooltip
 function PCATip({ active, payload }) {
@@ -15,7 +21,9 @@ function PCATip({ active, payload }) {
   const d = payload[0].payload;
   return (
     <div className="card py-2 px-3 text-xs shadow-(--shadow-card-lg)">
-      <p className="font-semibold text-text-primary mb-1">Label: {d.label ?? d.z}</p>
+      <p className="font-semibold text-text-primary mb-1">
+        Label: {d.label ?? d.z}
+      </p>
       <p className="text-text-secondary">PC1: {d.x?.toFixed(3)}</p>
       <p className="text-text-secondary">PC2: {d.y?.toFixed(3)}</p>
     </div>
@@ -28,29 +36,47 @@ export default function PCAScatterPlot({ pca }) {
   }
 
   // Subsample to max 600 points for performance
-  const points  = pca.points.length > 600
-    ? pca.points.filter((_, i) => i % Math.ceil(pca.points.length / 600) === 0)
-    : pca.points;
+  const points =
+    pca.points.length > 600
+      ? pca.points.filter(
+          (_, i) => i % Math.ceil(pca.points.length / 600) === 0,
+        )
+      : pca.points;
 
-  const series  = buildPCASeriesByLabel(points);
-  const ev      = pca.explained_variance || [];
-  const total   = pca.total_variance     || 0;
+  const series = buildPCASeriesByLabel(points);
+  const ev = pca.explained_variance || [];
+  const total = pca.total_variance || 0;
 
   return (
     <div className="space-y-4">
       {/* Variance badges */}
       <div className="flex flex-wrap gap-2 text-xs">
         {ev.map((v, i) => (
-          <span key={i}
+          <span
+            key={i}
             className="px-2.5 py-1 rounded-full font-medium text-white"
-            style={{ background: CHART_COLORS[i] }}>
+            style={{ background: CHART_COLORS[i] }}
+          >
             PC{i + 1}: {(v * 100).toFixed(1)}%
           </span>
         ))}
-        <span className="px-2.5 py-1 rounded-full font-medium bg-surface
-                         border border-surface-border text-text-secondary">
+        <span
+          className="px-2.5 py-1 rounded-full font-medium bg-surface
+                         border border-surface-border text-text-secondary"
+        >
           Total: {(total * 100).toFixed(1)}%
         </span>
+      </div>
+
+      <div
+        className="
+    rounded-xl border border-surface-border
+    bg-surface px-4 py-2.5 text-xs text-text-secondary
+  "
+      >
+        PCA reduces dimensionality while preserving important variance in the
+        dataset. The chart below projects data onto the first two principal
+        components for visual pattern analysis.
       </div>
 
       {/* Scatter chart */}
@@ -59,25 +85,36 @@ export default function PCAScatterPlot({ pca }) {
           <ScatterChart margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
             <XAxis
-              type="number" dataKey="x"
+              type="number"
+              dataKey="x"
               name="PC1"
               tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
-              label={{ value: `PC1 (${ev[0] ? (ev[0]*100).toFixed(1)+"%" : ""})`,
-                       position: "insideBottom", offset: -2,
-                       fontSize: 10, fill: "var(--color-text-muted)" }}
+              label={{
+                value: `PC1 (${ev[0] ? (ev[0] * 100).toFixed(1) + "%" : ""})`,
+                position: "insideBottom",
+                offset: -2,
+                fontSize: 10,
+                fill: "var(--color-text-muted)",
+              }}
             />
             <YAxis
-              type="number" dataKey="y"
+              type="number"
+              dataKey="y"
               name="PC2"
               tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
-              label={{ value: `PC2 (${ev[1] ? (ev[1]*100).toFixed(1)+"%" : ""})`,
-                       angle: -90, position: "insideLeft",
-                       fontSize: 10, fill: "var(--color-text-muted)" }}
+              label={{
+                value: `PC2 (${ev[1] ? (ev[1] * 100).toFixed(1) + "%" : ""})`,
+                angle: -90,
+                position: "insideLeft",
+                fontSize: 10,
+                fill: "var(--color-text-muted)",
+              }}
             />
             <Tooltip content={<PCATip />} />
             <Legend
               wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-              iconType="circle" iconSize={8}
+              iconType="circle"
+              iconSize={8}
             />
             {series.map(({ name, color, data }) => (
               <Scatter
@@ -102,19 +139,27 @@ export default function PCAScatterPlot({ pca }) {
               const pct = Math.abs(pc1) * 100;
               return (
                 <div key={feature} className="flex items-center gap-3 text-xs">
-                  <span className="w-28 text-text-secondary truncate">{feature}</span>
-                  <div className="flex-1 h-2 bg-surface rounded-full overflow-hidden
-                                  border border-surface-border">
+                  <span className="w-28 text-text-secondary truncate">
+                    {feature}
+                  </span>
+                  <div
+                    className="flex-1 h-2 bg-surface rounded-full overflow-hidden
+                                  border border-surface-border"
+                  >
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${Math.min(100, pct * 5)}%`,
-                        background: pc1 >= 0 ? "var(--color-primary)" : "var(--color-danger)",
+                        background:
+                          pc1 >= 0
+                            ? "var(--color-primary)"
+                            : "var(--color-danger)",
                       }}
                     />
                   </div>
                   <span className="w-12 text-right font-mono text-text-muted">
-                    {pc1 >= 0 ? "+" : ""}{pc1.toFixed(3)}
+                    {pc1 >= 0 ? "+" : ""}
+                    {pc1.toFixed(3)}
                   </span>
                 </div>
               );

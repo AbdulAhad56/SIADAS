@@ -23,6 +23,10 @@ import tensorflow as tf
 
 from sklearn.metrics import (
     accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix,
     mean_squared_error,
     mean_absolute_error,
     r2_score,
@@ -227,11 +231,67 @@ def _compute_metrics(
 ) -> dict:
     if problem_type == "binary_classification":
         y_pred = (y_pred_raw.flatten() >= 0.5).astype(int)
-        return {"accuracy": round(float(accuracy_score(y_true, y_pred)), 4)}
+        return {
+            "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
 
+        "precision": round(
+            float(precision_score(y_true, y_pred, zero_division=0)), 4
+        ),
+
+        "recall": round(
+            float(recall_score(y_true, y_pred, zero_division=0)), 4
+        ),
+
+        "f1_score": round(
+            float(f1_score(y_true, y_pred, zero_division=0)), 4
+        ),
+
+        "confusion_matrix": confusion_matrix(
+            y_true, y_pred
+        ).tolist(),
+    }
+    
     if problem_type == "multiclass_classification":
         y_pred = np.argmax(y_pred_raw, axis=1)
-        return {"accuracy": round(float(accuracy_score(y_true, y_pred)), 4)}
+        return {
+        "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
+
+        "precision": round(
+            float(
+                precision_score(
+                    y_true,
+                    y_pred,
+                    average="weighted",
+                    zero_division=0,
+                )
+            ),
+            4,
+        ),
+
+        "recall": round(
+            float(
+                recall_score(
+                    y_true,
+                    y_pred,
+                    average="weighted",
+                    zero_division=0,
+                )
+            ),
+            4,
+        ),
+
+        "f1_score": round(
+            float(
+                f1_score(
+                    y_true,
+                    y_pred,
+                    average="weighted",
+                    zero_division=0,
+                )
+            ),
+            4,
+        ),
+    }
 
     y_pred = y_pred_raw.flatten()
     return {

@@ -5,58 +5,82 @@
 import { PROBLEM_LABELS } from "@/utils/constants";
 
 const PROBLEM_ICONS = {
-  binary_classification     : { icon: "⚡", color: "var(--color-primary)" },
-  multiclass_classification : { icon: "🎯", color: "var(--color-accent)"  },
-  regression                : { icon: "📈", color: "var(--color-success)"  },
+  binary_classification: { icon: "⚡", color: "var(--color-primary)" },
+  multiclass_classification: { icon: "🎯", color: "var(--color-accent)" },
+  regression: { icon: "📈", color: "var(--color-success)" },
 };
 
 export default function SummaryCards({ summary }) {
   if (!summary) return null;
 
-  const { rows, columns, feature_count, problem_type, preprocessing } = summary;
-  const pLabel  = PROBLEM_LABELS[problem_type] || problem_type;
-  const pStyle  = PROBLEM_ICONS[problem_type]  || { icon: "🔬", color: "var(--color-primary)" };
+  const {
+    rows,
+    columns,
+    feature_count,
+    problem_type,
+    preprocessing,
+    missing_values = 0,
+    columns_with_missing = 0,
+  } = summary;
+  const pLabel = PROBLEM_LABELS[problem_type] || problem_type;
+  const pStyle = PROBLEM_ICONS[problem_type] || {
+    icon: "🔬",
+    color: "var(--color-primary)",
+  };
 
   const cards = [
     {
-      label   : "Total Rows",
-      value   : rows?.toLocaleString()   ?? "—",
-      icon    : "🗂️",
-      sub     : "data samples",
-      color   : "var(--color-primary)",
-      bg      : "rgba(79,70,229,0.06)",
+      label: "Total Rows",
+      value: rows?.toLocaleString() ?? "—",
+      icon: "🗂️",
+      sub: "data samples",
+      color: "var(--color-primary)",
+      bg: "rgba(79,70,229,0.06)",
     },
     {
-      label   : "Columns",
-      value   : columns ?? "—",
-      icon    : "📐",
-      sub     : "original columns",
-      color   : "var(--color-accent)",
-      bg      : "rgba(6,182,212,0.06)",
+      label: "Columns",
+      value: columns ?? "—",
+      icon: "📐",
+      sub: "original columns",
+      color: "var(--color-accent)",
+      bg: "rgba(6,182,212,0.06)",
     },
     {
-      label   : "Features",
-      value   : feature_count ?? "—",
-      icon    : "✨",
-      sub     : "after encoding",
-      color   : "var(--color-success)",
-      bg      : "rgba(16,185,129,0.06)",
+      label: "Features",
+      value: feature_count ?? "—",
+      icon: "✨",
+      sub: "after encoding",
+      color: "var(--color-success)",
+      bg: "rgba(16,185,129,0.06)",
     },
     {
-      label   : "Task Type",
-      value   : pStyle.icon,
-      icon    : null,
-      sub     : pLabel,
-      color   : pStyle.color,
-      bg      : `color-mix(in srgb, ${pStyle.color} 8%, transparent)`,
-      isType  : true,
+      label: "Missing Values",
+      value: missing_values?.toLocaleString() ?? "0",
+      icon: missing_values > 0 ? "⚠️" : "✅",
+      sub:
+        missing_values > 0
+          ? `${columns_with_missing} columns affected`
+          : "no missing values",
+      color:
+        missing_values > 0 ? "var(--color-warning)" : "var(--color-success)",
+      bg:
+        missing_values > 0 ? "rgba(245,158,11,0.08)" : "rgba(16,185,129,0.08)",
+    },
+    {
+      label: "Task Type",
+      value: pStyle.icon,
+      icon: null,
+      sub: pLabel,
+      color: pStyle.color,
+      bg: `color-mix(in srgb, ${pStyle.color} 8%, transparent)`,
+      isType: true,
     },
   ];
 
   return (
     <div className="space-y-5">
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map(({ label, value, icon, sub, color, bg, isType }) => (
           <div
             key={label}
@@ -74,10 +98,14 @@ export default function SummaryCards({ summary }) {
             {/* Value */}
             <div>
               {isType ? (
-                <p className="text-sm font-bold" style={{ color }}>{sub}</p>
+                <p className="text-sm font-bold" style={{ color }}>
+                  {sub}
+                </p>
               ) : (
                 <>
-                  <p className="text-2xl font-extrabold" style={{ color }}>{value}</p>
+                  <p className="text-2xl font-extrabold" style={{ color }}>
+                    {value}
+                  </p>
                   <p className="text-xs text-text-muted mt-0.5">{sub}</p>
                 </>
               )}

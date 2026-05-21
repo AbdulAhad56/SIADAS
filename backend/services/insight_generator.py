@@ -217,7 +217,7 @@ def _clustering_insights(cluster_data: dict) -> list[str]:
                 f"Cluster {smallest_cluster} is a minority cluster "
                 f"({sizes[smallest_cluster]:,} samples, "
                 f"{sizes[smallest_cluster]/total*100:.1f}%) — "
-                "may represent outliers or a niche segment."
+                "may represent a smaller or behaviourally distinct subgroup."
             )
 
     # Identify high-value cluster (highest mean norm in feature space)
@@ -225,7 +225,7 @@ def _clustering_insights(cluster_data: dict) -> list[str]:
         high_cluster = max(means, key=lambda c: c["mean_norm"])
         insights.append(
             f"Cluster {high_cluster['cluster']} shows the highest average feature magnitude "
-            f"— it likely represents high-value or extreme-behaviour samples."
+            f"— it likely represents a distinct subgroup or potentially unique data segment."
         )
 
     return insights

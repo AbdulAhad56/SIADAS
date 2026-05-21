@@ -3,9 +3,18 @@
 // Fixed: SVG fill/stroke use hardcoded hex — CSS vars only work in style={}, not SVG attrs
 
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell, LabelList,
-  LineChart, Line, Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+  LineChart,
+  Line,
+  Legend,
 } from "recharts";
 import { buildModelComparisonData } from "@/utils/chartHelpers";
 
@@ -13,15 +22,15 @@ import { buildModelComparisonData } from "@/utils/chartHelpers";
 // CSS custom properties (var(--color-*)) do NOT resolve inside SVG fill/stroke
 // attributes — they only work in CSS `style` properties. Use hex here always.
 const HEX = {
-  primary   : "#4F46E5",
-  accent    : "#06B6D4",
-  success   : "#10B981",
-  warning   : "#F59E0B",
-  danger    : "#EF4444",
-  violet    : "#8B5CF6",
-  border    : "#E2E8F0",
-  textMuted : "#94A3B8",
-  textSub   : "#475569",
+  primary: "#4F46E5",
+  accent: "#06B6D4",
+  success: "#10B981",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  violet: "#8B5CF6",
+  border: "#E2E8F0",
+  textMuted: "#94A3B8",
+  textSub: "#475569",
 };
 
 // Ordered palette for multi-model bars
@@ -39,10 +48,14 @@ const CARD_COLORS = [
 function BarTip({ active, payload, label, isClf }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="card py-2 px-3 text-xs" style={{ boxShadow: "var(--shadow-card-lg)" }}>
+    <div
+      className="card py-2 px-3 text-xs"
+      style={{ boxShadow: "var(--shadow-card-lg)" }}
+    >
       <p className="font-semibold text-text-primary mb-1">{label}</p>
       <p style={{ color: "var(--color-primary)" }}>
-        {isClf ? "Accuracy" : "RMSE"}: {payload[0]?.value}{isClf ? "%" : ""}
+        {isClf ? "Accuracy" : "RMSE"}: {payload[0]?.value}
+        {isClf ? "%" : ""}
       </p>
     </div>
   );
@@ -60,12 +73,11 @@ export default function ModelPerformance({
   }
 
   const isClf = problemType?.includes("classification");
-  const data  = buildModelComparisonData(comparison);
-  const best  = comparison.best_model;
+  const data = buildModelComparisonData(comparison);
+  const best = comparison.best_model;
 
   return (
     <div className="space-y-8">
-
       {/* ── Comparison bar chart ─────────────────────────────────────── */}
       <div>
         <p className="label mb-4">
@@ -114,16 +126,20 @@ export default function ModelPerformance({
                     position="top"
                     formatter={(v) => (isClf ? `${v}%` : v)}
                     style={{
-                      fontSize   : 12,
-                      fontWeight : 700,
-                      fill       : HEX.textSub,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      fill: HEX.textSub,
                     }}
                   />
                   {data.map((entry, i) => (
                     <Cell
                       key={i}
                       /* Best model = full primary, others = palette at 75% opacity */
-                      fill={entry.name === best ? HEX.primary : BAR_COLORS[i % BAR_COLORS.length]}
+                      fill={
+                        entry.name === best
+                          ? HEX.primary
+                          : BAR_COLORS[i % BAR_COLORS.length]
+                      }
                       fillOpacity={entry.name === best ? 1 : 0.72}
                     />
                   ))}
@@ -133,14 +149,31 @@ export default function ModelPerformance({
           </div>
         )}
 
-        {/* Best model callout */}
+        {/* Best performing model callout */}
         {best && (
-          <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className="text-base">🏆</span>
-            <span className="text-text-secondary">
-              Best model:{" "}
-              <span className="font-semibold text-primary">{best}</span>
-            </span>
+          <div
+            className="mt-4 flex items-center gap-3 rounded-xl border px-4 py-3"
+            style={{
+              background: "rgba(79,70,229,0.05)",
+              borderColor: "rgba(79,70,229,0.15)",
+            }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+              style={{
+                background: "rgba(79,70,229,0.12)",
+              }}
+            >
+              🏆
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-[11px] uppercase tracking-wide text-text-muted font-semibold">
+                Best Performing Model
+              </span>
+
+              <span className="text-sm font-bold text-primary">{best}</span>
+            </div>
           </div>
         )}
       </div>
@@ -165,8 +198,7 @@ export default function ModelPerformance({
               metrics={dlResults}
               isClf={isClf}
               isBest={
-                dlResults.model === best ||
-                "Deep Learning (MLP)" === best
+                dlResults.model === best || "Deep Learning (MLP)" === best
               }
               accentColor="var(--color-warning)"
             />
@@ -189,8 +221,8 @@ export default function ModelPerformance({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={dlResults.history.epochs.map((ep, i) => ({
-                  epoch   : ep,
-                  loss    : dlResults.history.loss?.[i],
+                  epoch: ep,
+                  loss: dlResults.history.loss?.[i],
                   val_loss: dlResults.history.val_loss?.[i],
                 }))}
                 margin={{ top: 5, right: 24, left: 0, bottom: 5 }}
@@ -200,19 +232,19 @@ export default function ModelPerformance({
                   dataKey="epoch"
                   tick={{ fontSize: 9, fill: HEX.textMuted }}
                   label={{
-                    value   : "Epoch",
+                    value: "Epoch",
                     position: "insideBottomRight",
-                    offset  : -4,
+                    offset: -4,
                     fontSize: 9,
-                    fill    : HEX.textMuted,
+                    fill: HEX.textMuted,
                   }}
                 />
                 <YAxis tick={{ fontSize: 9, fill: HEX.textMuted }} width={42} />
                 <Tooltip
                   contentStyle={{
-                    fontSize    : 11,
+                    fontSize: 11,
                     borderRadius: 8,
-                    border      : `1px solid ${HEX.border}`,
+                    border: `1px solid ${HEX.border}`,
                   }}
                   formatter={(v) => v?.toFixed(4)}
                 />
@@ -265,7 +297,7 @@ function ModelCard({ name, metrics, isClf, isBest, accentColor }) {
         isBest
           ? {
               borderColor: "rgba(79,70,229,0.45)",
-              boxShadow  : "0 0 0 3px rgba(79,70,229,0.08)",
+              boxShadow: "0 0 0 3px rgba(79,70,229,0.08)",
             }
           : {}
       }
@@ -286,23 +318,25 @@ function ModelCard({ name, metrics, isClf, isBest, accentColor }) {
         style={{ background: accentColor }}
       />
 
-      <p className="text-sm font-bold text-text-primary mb-4 pr-10">
-        {name}
-      </p>
+      <p className="text-sm font-bold text-text-primary mb-4 pr-10">{name}</p>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
         {isClf ? (
           <>
-            <Metric label="Accuracy"  value={`${(metrics.accuracy * 100).toFixed(2)}%`} highlight />
-            <Metric label="F1 Score"  value={metrics.f1_score?.toFixed(4)} />
+            <Metric
+              label="Accuracy"
+              value={`${(metrics.accuracy * 100).toFixed(2)}%`}
+              highlight
+            />
+            <Metric label="F1 Score" value={metrics.f1_score?.toFixed(4)} />
             <Metric label="Precision" value={metrics.precision?.toFixed(4)} />
-            <Metric label="Recall"    value={metrics.recall?.toFixed(4)} />
+            <Metric label="Recall" value={metrics.recall?.toFixed(4)} />
           </>
         ) : (
           <>
             <Metric label="RMSE" value={metrics.rmse?.toFixed(4)} highlight />
-            <Metric label="R²"   value={metrics.r2?.toFixed(4)} />
-            <Metric label="MAE"  value={metrics.mae?.toFixed(4)} />
+            <Metric label="R²" value={metrics.r2?.toFixed(4)} />
+            <Metric label="MAE" value={metrics.mae?.toFixed(4)} />
           </>
         )}
       </div>
@@ -318,8 +352,8 @@ function ModelCard({ name, metrics, isClf, isBest, accentColor }) {
                 className="w-11 h-11 flex items-center justify-center
                            rounded-lg text-sm font-bold text-white"
                 style={{
-                  background : i === 0 || i === 3 ? HEX.primary : HEX.danger,
-                  opacity    : i === 0 || i === 3 ? 1 : 0.75,
+                  background: i === 0 || i === 3 ? HEX.primary : HEX.danger,
+                  opacity: i === 0 || i === 3 ? 1 : 0.75,
                 }}
               >
                 {v}
@@ -344,7 +378,11 @@ function Metric({ label, value, highlight = false }) {
       </p>
       <p
         className="font-mono font-semibold"
-        style={{ color: highlight ? "var(--color-primary)" : "var(--color-text-primary)" }}
+        style={{
+          color: highlight
+            ? "var(--color-primary)"
+            : "var(--color-text-primary)",
+        }}
       >
         {value ?? "—"}
       </p>

@@ -12,7 +12,7 @@ Data Mining pipeline — all 6 algorithms, safe for small–large datasets:
 CHANGES IN THIS VERSION
 ───────────────────────
 • _safe_numeric_df()     NEW — converts every column to float, fills NaN with 0
-• Row cap (1 000)        NEW — limits heavy computation on large datasets
+• Row cap (2 000)        NEW — limits heavy computation on large datasets
 • Apriori guard          CHANGED — skipped if rows > ROW_CAP_ASSOC
 • Silhouette score       ADDED — returned inside clustering result
 • All functions wrapped  CHANGED — individual try/except, never crashes pipeline
@@ -446,7 +446,7 @@ def run_association_mining(df: pd.DataFrame) -> dict:
             for _, r in rules_df.iterrows()
         ]
 
-        return {"frequent_itemsets": serialised_itemsets, "rules": serialised_rules}
+        return {"frequent_itemsets": serialised_itemsets, "rules": serialised_rules, "min_support": ASSOC_MIN_SUPPORT, "min_confidence": ASSOC_MIN_CONFIDENCE,}
 
     except Exception as exc:
         return {**empty, "error": str(exc)}
