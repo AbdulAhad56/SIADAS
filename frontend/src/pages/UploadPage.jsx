@@ -3,6 +3,7 @@
 // Step 2: dataset preview table + target column selector
 // Step 3: trigger analysis pipeline → navigate to /dashboard
 
+import { UploadCloud, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUpload } from "@/hooks/useUpload";
@@ -114,7 +115,7 @@ export default function UploadPage() {
             Running analysis pipeline
           </p>
           <p className="text-sm text-text-secondary">
-            Running preprocessing → data mining → ML → Deep Learning (MLP)
+            Running Preprocessing → Data Mining → ML → Deep Learning (MLP)
           </p>
         </div>
         {/* Animated pipeline steps */}
@@ -168,7 +169,7 @@ export default function UploadPage() {
           Upload Dataset
         </h1>
         <p className="text-text-secondary">
-          Upload a CSV file to begin the SAIDAS analysis pipeline.
+          Upload a CSV file to begin the SMARTMINER analysis pipeline.
         </p>
       </div>
 
@@ -204,13 +205,13 @@ export default function UploadPage() {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`card cursor-pointer border-2 border-dashed transition-all duration-200
-          flex flex-col items-center justify-center gap-4 py-14 text-center
+        className={`card cursor-pointer border-2 border-dashed shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300
+          flex flex-col items-center justify-center gap-4 py-10 text-center
           ${
             isDragging
               ? "border-primary bg-primary bg-opacity-5 scale-[1.01]"
               : uploadResult
-                ? "border-success bg-success/10"
+                ? "border-emerald-400 bg-emerald-50"
                 : "border-surface-border hover:border-primary"
           }`}
       >
@@ -224,8 +225,14 @@ export default function UploadPage() {
 
         {/* Icon */}
         <div
-          className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl
-          ${uploadResult ? "bg-green-100" : "bg-primary bg-opacity-10"}`}
+          className={`w-16 h-16 rounded-2xl flex items-center justify-center
+  ${
+    isUploading
+      ? "bg-primary/10"
+      : uploadResult
+        ? "bg-emerald-100 shadow-sm"
+        : "bg-primary"
+  }`}
         >
           {isUploading ? (
             <div
@@ -233,9 +240,16 @@ export default function UploadPage() {
                             border-t-transparent rounded-full animate-spin"
             />
           ) : uploadResult ? (
-            "✅"
+            <CheckCircle2
+              className="w-10 h-10 text-emerald-600"
+              strokeWidth={2.4}
+            />
           ) : (
-            "📂"
+            <UploadCloud
+              className="w-10 h-10"
+              strokeWidth={2.2}
+              style={{ color: "white" }}
+            />
           )}
         </div>
 
@@ -276,14 +290,14 @@ export default function UploadPage() {
           className="flex items-start gap-3 p-4 rounded-xl
                         bg-red-50 border border-red-200 text-red-700 text-sm"
         >
-          <span className="text-lg">⚠️</span>
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
           <p>{uploadError || localError}</p>
         </div>
       )}
 
       {/* ── Dataset preview ────────────────────────────────────────────── */}
       {uploadResult && columns.length > 0 && (
-        <div className="card animate-[slideUp_0.3s_ease]">
+        <div className="card shadow-sm hover:shadow-md transition-all duration-300 animate-[slideUp_0.3s_ease]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="section-title mb-0">Dataset Preview</h2>
             <div className="flex gap-2">
@@ -299,7 +313,7 @@ export default function UploadPage() {
                           border-surface-border"
           >
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr
                   className="bg-surface border-b
                                border-surface-border"
@@ -355,7 +369,7 @@ export default function UploadPage() {
 
       {/* ── Target column selector ─────────────────────────────────────── */}
       {uploadResult && columns.length > 0 && (
-        <div className="animate-[slideUp_0.4s_ease]">
+        <div className="animate-[slideUp_0.4s_ease] shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl">
           <TargetSelector
             columns={columns}
             dtypes={dtypes}
@@ -371,14 +385,14 @@ export default function UploadPage() {
       )}
       {/* ── Analyse button ─────────────────────────────────────────────── */}
       {uploadResult && (
-        <div className="flex items-center justify-between pt-2 animate-[slideUp_0.5s_ease]">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 animate-[slideUp_0.5s_ease]">
           <button onClick={() => navigate("/")} className="btn-ghost">
             ← Back to Home
           </button>
           <button
             onClick={handleAnalyze}
             disabled={!selectedTarget || isAnalyzing}
-            className="btn-primary px-8 py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn-primary px-8 py-3 text-base hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isAnalyzing ? "Running pipeline…" : "Analyse Dataset →"}
           </button>

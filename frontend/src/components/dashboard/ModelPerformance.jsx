@@ -16,6 +16,7 @@ import {
   Line,
   Legend,
 } from "recharts";
+import { CircleStar } from "lucide-react";
 import { buildModelComparisonData } from "@/utils/chartHelpers";
 
 // ── Hardcoded hex palette for SVG attributes ──────────────────────────────
@@ -152,7 +153,11 @@ export default function ModelPerformance({
         {/* Best performing model callout */}
         {best && (
           <div
-            className="mt-4 flex items-center gap-3 rounded-xl border px-4 py-3"
+            className="mt-4 flex items-center gap-3 rounded-xl border px-4 py-3 hover:-translate-y-1
+hover:shadow-md
+hover:border-slate-300
+
+transition-all duration-300"
             style={{
               background: "rgba(79,70,229,0.05)",
               borderColor: "rgba(79,70,229,0.15)",
@@ -164,7 +169,7 @@ export default function ModelPerformance({
                 background: "rgba(79,70,229,0.12)",
               }}
             >
-              🏆
+              <CircleStar className="w-7 h-7 text-primary" strokeWidth={2.3} />
             </div>
 
             <div className="flex flex-col">

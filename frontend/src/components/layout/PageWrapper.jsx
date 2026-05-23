@@ -6,7 +6,7 @@ export default function PageWrapper({ children, narrow = false, className = "" }
   return (
     <div
       className={[
-        "w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8",,
+        "w-full mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3",
         narrow ? "max-w-3xl" : "max-w-7xl",
         className,
       ].join(" ")}

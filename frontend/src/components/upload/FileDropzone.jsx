@@ -9,6 +9,13 @@
 import { useState, useRef, useCallback } from "react";
 import { uploadFile }                     from "@/api/saidas";
 import { formatBytes }                    from "@/utils/formatters";
+import {
+  FolderOpen,
+  Upload,
+  CheckCircle2,
+  AlertTriangle,
+  FileSpreadsheet,
+} from "lucide-react";
 
 const MAX_SIZE_MB    = 50;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
@@ -188,7 +195,10 @@ export default function FileDropzone({
       {status === STATE.SUCCESS && file && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl
                         bg-green-50 border border-green-200 text-sm">
-          <span className="text-base">📄</span>
+          <FileSpreadsheet
+  className="w-5 h-5 text-green-600 shrink-0"
+  strokeWidth={2.2}
+/>
           <span className="font-medium text-green-800 truncate flex-1">{file.name}</span>
           <span className="text-green-600 shrink-0 font-mono text-xs">
             {formatBytes(file.size)}
@@ -202,37 +212,83 @@ export default function FileDropzone({
 // ── Sub-components ────────────────────────────────────────────────────────
 
 function DropzoneIcon({ status, progress }) {
-  const wrapCls = "w-16 h-16 rounded-2xl flex items-center justify-center text-3xl";
+  const wrapCls =
+    "w-16 h-16 rounded-2xl flex items-center justify-center";
 
   if (status === STATE.UPLOADING) {
     return (
-      <div className={`${wrapCls} bg-accent bg-opacity-10 relative`}>
-        {/* Spinning ring */}
-        <svg className="absolute inset-0 w-full h-full -rotate-90 animate-spin"
-             viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r="28" fill="none"
-            stroke="var(--color-accent)" strokeOpacity="0.2" strokeWidth="4" />
-          <circle cx="32" cy="32" r="28" fill="none"
-            stroke="var(--color-accent)" strokeWidth="4"
+      <div
+        className={`${wrapCls} bg-primary/10 relative overflow-hidden`}
+      >
+        {/* Spinner ring */}
+        <svg
+          className="absolute inset-0 w-full h-full -rotate-90 animate-spin"
+          viewBox="0 0 64 64"
+        >
+          <circle
+            cx="32"
+            cy="32"
+            r="28"
+            fill="none"
+            stroke="var(--color-primary)"
+            strokeOpacity="0.15"
+            strokeWidth="4"
+          />
+
+          <circle
+            cx="32"
+            cy="32"
+            r="28"
+            fill="none"
+            stroke="var(--color-primary)"
+            strokeWidth="4"
             strokeDasharray={`${progress * 1.759} 175.9`}
-            strokeLinecap="round" />
+            strokeLinecap="round"
+          />
         </svg>
-        <span className="relative text-sm font-bold text-accent">
-          {progress}%
-        </span>
+
+        <Upload
+          className="w-7 h-7 text-primary relative"
+          strokeWidth={2.2}
+        />
       </div>
     );
   }
 
   const map = {
-    [STATE.IDLE]    : { emoji: "📂", bg: "bg-[var(--color-primary)] bg-opacity-10" },
-    [STATE.DRAGGING]: { emoji: "📥", bg: "bg-[var(--color-primary)] bg-opacity-15" },
-    [STATE.SUCCESS] : { emoji: "✅", bg: "bg-green-100" },
-    [STATE.ERROR]   : { emoji: "⚠️", bg: "bg-red-100"  },
+    [STATE.IDLE]: {
+      icon: FolderOpen,
+      bg: "bg-primary/10",
+      color: "text-primary",
+    },
+
+    [STATE.DRAGGING]: {
+      icon: Upload,
+      bg: "bg-primary/15",
+      color: "text-primary",
+    },
+
+    [STATE.SUCCESS]: {
+      icon: CheckCircle2,
+      bg: "bg-green-100",
+      color: "text-green-600",
+    },
+
+    [STATE.ERROR]: {
+      icon: AlertTriangle,
+      bg: "bg-red-100",
+      color: "text-red-600",
+    },
   };
 
-  const { emoji, bg } = map[status] || map[STATE.IDLE];
-  return <div className={`${wrapCls} ${bg}`}>{emoji}</div>;
+  const { icon: Icon, bg, color } =
+    map[status] || map[STATE.IDLE];
+
+  return (
+    <div className={`${wrapCls} ${bg}`}>
+      <Icon className={`w-8 h-8 ${color}`} strokeWidth={2.2} />
+    </div>
+  );
 }
 
 function DropzoneText({ status, file, errMsg, maxSizeMb }) {

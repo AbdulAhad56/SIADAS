@@ -2,6 +2,19 @@
 // Main results dashboard: reads analysisResult from context and
 // renders every section. Guards against missing data with a redirect.
 
+import {
+  FileText,
+  LayoutGrid,
+  Orbit,
+  CircleDot,
+  Network,
+  ChartColumn,
+  ChartNoAxesColumn,
+  CircleStar,
+  TriangleAlert,
+  Lightbulb,
+  GitBranch,
+} from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAnalysisContext } from "@/context/AnalysisContext";
@@ -22,15 +35,19 @@ import OutlierSummary from "@/components/dashboard/OutlierSummary";
 
 // ── Sidebar nav (two new entries added at the end) ────────────────────────
 const NAV_SECTIONS = [
-  { id: "section-summary", label: "Summary", icon: "📋" },
-  { id: "section-correlation", label: "Correlation", icon: "🔥" },
-  { id: "section-pca", label: "PCA", icon: "🎯" },
-  { id: "section-clusters", label: "Clusters", icon: "🫧" },
-  { id: "section-models", label: "Model Performance", icon: "📊" },
-  { id: "section-features", label: "Feature Importance", icon: "⭐" },
-  { id: "section-association", label: "Association Rules", icon: "🔗" }, // NEW
-  { id: "section-outliers", label: "Outlier Detection", icon: "🔍" }, // NEW
-  { id: "section-insights", label: "Insights", icon: "💡" },
+  { id: "section-summary", label: "Summary", icon: FileText },
+  { id: "section-correlation", label: "Correlation", icon: LayoutGrid },
+  { id: "section-pca", label: "PCA", icon: Orbit },
+  { id: "section-clusters", label: "Clusters", icon: Network },
+  { id: "section-models", label: "Model Performance", icon: ChartColumn },
+  {
+    id: "section-features",
+    label: "Feature Importance",
+    icon: ChartNoAxesColumn,
+  },
+  { id: "section-association", label: "Association Rules", icon: GitBranch }, // NEW
+  { id: "section-outliers", label: "Outlier Detection", icon: TriangleAlert }, // NEW
+  { id: "section-insights", label: "Insights", icon: Lightbulb },
 ];
 
 function scrollTo(id) {
@@ -58,14 +75,25 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-surface">
       {/* ── Sticky sidebar ─────────────────────────────────────────────── */}
       <aside
-        className="hidden lg:flex flex-col w-56 shrink-0 sticky top-0 h-screen
-                        bg-white border-r border-surface-border
-                        py-6 overflow-y-auto scrollbar-thin"
+        className="
+hidden lg:flex flex-col
+fixed left-0 top-18.25
+w-75 h-[calc(100vh-73px)]
+shrink-0
+
+bg-surface
+border-r border-slate-200
+
+px-6 py-7
+overflow-y-auto scrollbar-thin
+"
       >
         {/* Logo */}
         <div className="px-5 mb-6">
-          <span className="text-xl font-extrabold text-gradient">SAIDAS</span>
-          <p className="text-[10px] text-text-muted mt-0.5 leading-tight">
+          <span className="text-lg sm:text-xl font-extrabold text-gradient">
+            SMARTMINER
+          </span>
+          <p className="text-[12px] text-text-muted mt-0.5 leading-tight">
             Analysis Dashboard
           </p>
         </div>
@@ -73,8 +101,8 @@ export default function DashboardPage() {
         {/* Dataset pill */}
         {uploadResult?.filename && (
           <div
-            className="mx-4 mb-4 px-3 py-2 rounded-lg bg-surface
-                          border border-surface-border"
+            className="mx-4 mb-4 px-3 py-2 rounded-lg bg-primary/5
+                        border border-primary/20"
           >
             <p className="text-[10px] label mb-0.5">Dataset</p>
             <p className="text-xs font-medium text-text-primary truncate">
@@ -99,45 +127,28 @@ export default function DashboardPage() {
 
         {/* Section navigation */}
         <nav className="flex-1 px-3 space-y-0.5">
-          {NAV_SECTIONS.map(({ id, label, icon }) => (
+          {NAV_SECTIONS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => scrollTo(id)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer
                          text-text-secondary hover:bg-surface
                          hover:text-primary transition-colors duration-150 text-left"
             >
-              <span>{icon}</span>
+              <Icon className="w-4 h-4 shrink-0" strokeWidth={2.2} />
               <span className="truncate">{label}</span>
             </button>
           ))}
         </nav>
-
-        {/* Bottom actions */}
-        <div className="px-4 mt-4 space-y-2">
-          <button
-            onClick={() => {
-              reset();
-              navigate("/upload");
-            }}
-            className="w-full btn-secondary text-xs py-2 px-3"
-          >
-            ↑ New Analysis
-          </button>
-          <button
-            onClick={() => navigate("/")}
-            className="w-full btn-ghost text-xs py-2 px-3"
-          >
-            ← Home
-          </button>
-        </div>
       </aside>
 
       {/* ── Main content ───────────────────────────────────────────────── */}
-      <main className="flex-1 min-w-0 py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+      <main className="flex-1 min-w-0 py-6 sm:px-5 lg:px-6 space-y-8 lg:ml-75">
         {/* Mobile top bar */}
         <div className="flex items-center justify-between lg:hidden">
-          <span className="text-xl font-extrabold text-gradient">SAIDAS</span>
+          <span className="text-xl font-extrabold text-gradient">
+            SMARTMINER
+          </span>
           <button
             onClick={() => {
               reset();
@@ -162,11 +173,11 @@ export default function DashboardPage() {
               <span className="font-semibold text-primary">
                 {summary?.target}
               </span>
-              {" · "}
+              {" • "}
               {problemLabel}
               {meta?.pipeline_duration_seconds && (
                 <span className="text-text-muted ml-2">
-                  · completed in {meta.pipeline_duration_seconds}s
+                  • Completed in {meta.pipeline_duration_seconds}s
                 </span>
               )}
             </p>
@@ -179,7 +190,16 @@ export default function DashboardPage() {
                             bg-success/10
                             border border-success/30"
             >
-              <span>🏆</span>
+              <div
+                className="
+    w-14 h-14 rounded-xl
+    bg-success
+    flex items-center justify-center
+    shrink-0
+  "
+              >
+                <CircleStar className="w-7 h-7 text-white" strokeWidth={2.3} />
+              </div>
               <div className="text-sm">
                 <p className="text-[10px] label text-success">
                   Best Performing Model
@@ -194,18 +214,24 @@ export default function DashboardPage() {
         {/* ── A: Summary Cards ─────────────────────────────────────────── */}
         <section
           id="section-summary"
-          className="scroll-mt-6 animate-[slideUp_0.30s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.30s_ease]"
         >
-          <h2 className="section-title">📋 Dataset Summary</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            Dataset Summary
+          </h2>
           <SummaryCards summary={summary} />
         </section>
         <div className="divider" />
         {/* ── B: Correlation Heatmap ───────────────────────────────────── */}
         <section
           id="section-correlation"
-          className="scroll-mt-6 animate-[slideUp_0.33s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.33s_ease]"
         >
-          <h2 className="section-title">🔥 Correlation Heatmap</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <LayoutGrid className="w-5 h-5 text-primary" />
+            Correlation Heatmap
+          </h2>
           <div className="card">
             <CorrelationHeatmap correlation={mining?.correlation} />
           </div>
@@ -215,9 +241,12 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <section
             id="section-pca"
-            className="scroll-mt-6 animate-[slideUp_0.36s_ease]"
+            className="scroll-mt-20  animate-[slideUp_0.36s_ease]"
           >
-            <h2 className="section-title">🎯 PCA Scatter Plot</h2>
+            <h2 className="section-title flex items-center gap-2">
+              <Orbit className="w-5 h-5 text-primary" />
+              PCA Scatter Plot
+            </h2>
             <div className="card h-full">
               <PCAScatterPlot pca={mining?.pca} />
             </div>
@@ -225,9 +254,12 @@ export default function DashboardPage() {
 
           <section
             id="section-clusters"
-            className="scroll-mt-6 animate-[slideUp_0.36s_ease]"
+            className="scroll-mt-20 mt-10 xl:mt-0 animate-[slideUp_0.36s_ease]"
           >
-            <h2 className="section-title">🫧 Cluster Visualisation</h2>
+            <h2 className="section-title flex items-center gap-2">
+              <Network className="w-5 h-5 text-primary" />
+              Cluster Visualisation
+            </h2>
             <div className="card h-full">
               <ClusterPlot clustering={mining?.clustering} />
             </div>
@@ -237,9 +269,12 @@ export default function DashboardPage() {
         {/* ── D: Model Performance ─────────────────────────────────────── */}
         <section
           id="section-models"
-          className="scroll-mt-6 animate-[slideUp_0.39s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.39s_ease]"
         >
-          <h2 className="section-title">📊 Model Performance</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <ChartColumn className="w-5 h-5 text-primary" />
+            Model Performance
+          </h2>
           <div className="card">
             <ModelPerformance
               comparison={models?.comparison}
@@ -253,9 +288,12 @@ export default function DashboardPage() {
         {/* ── E: Feature Importance ────────────────────────────────────── */}
         <section
           id="section-features"
-          className="scroll-mt-6 animate-[slideUp_0.42s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.42s_ease]"
         >
-          <h2 className="section-title">⭐ Feature Importance</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <ChartNoAxesColumn className="w-5 h-5 text-primary" />
+            Feature Importance
+          </h2>
           <div className="card">
             <FeatureImportance featureImportance={mining?.feature_importance} />
           </div>
@@ -265,9 +303,12 @@ export default function DashboardPage() {
         {/* NEW */}
         <section
           id="section-association"
-          className="scroll-mt-6 animate-[slideUp_0.45s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.45s_ease]"
         >
-          <h2 className="section-title">🔗 Association Rules</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <GitBranch className="w-5 h-5 text-primary" />
+            Association Rules
+          </h2>
           <div className="card">
             <AssociationRules data={mining?.association_rules} />
           </div>
@@ -277,9 +318,12 @@ export default function DashboardPage() {
         {/* NEW */}
         <section
           id="section-outliers"
-          className="scroll-mt-6 animate-[slideUp_0.48s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.48s_ease]"
         >
-          <h2 className="section-title">🔍 Outlier Detection</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <TriangleAlert className="w-5 h-5 text-primary" />
+            Outlier Detection
+          </h2>
           <div className="card">
             <OutlierSummary data={mining?.outliers} />
           </div>
@@ -288,17 +332,14 @@ export default function DashboardPage() {
         {/* ── H: Insights ──────────────────────────────────────────────── */}
         <section
           id="section-insights"
-          className="scroll-mt-6 animate-[slideUp_0.51s_ease]"
+          className="scroll-mt-20 animate-[slideUp_0.51s_ease]"
         >
-          <h2 className="section-title">💡 Auto-Generated Insights</h2>
+          <h2 className="section-title flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 text-primary" />
+            Auto-Generated Insights
+          </h2>
           <InsightsPanel insights={insights} />
         </section>
-        {/* ── Footer ───────────────────────────────────────────────────── */}
-        <footer className="pt-8 pb-4 text-center">
-          <p className="text-xs text-text-muted">
-            SAIDAS · Semi-Automated Intelligent Data Analysis System
-          </p>
-        </footer>
       </main>
     </div>
   );

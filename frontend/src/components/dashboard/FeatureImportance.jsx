@@ -5,6 +5,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Cell, ResponsiveContainer, LabelList,
 } from "recharts";
+import {
+  BadgePercent,
+  DatabaseZap,
+} from "lucide-react";
 import { buildFeatureImportanceData } from "@/utils/chartHelpers";
 
 function FITip({ active, payload }) {
@@ -40,15 +44,31 @@ export default function FeatureImportance({ featureImportance }) {
 
       {/* Top feature callout */}
       {topFeature && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl
                         bg-primary/5
-                        border border-primary/20">
-          <span className="text-2xl">⭐</span>
+                        border border-primary/20 hover:-translate-y-1
+hover:shadow-md
+hover:border-slate-300
+
+transition-all duration-300">
+          <div
+    className="
+      w-14 h-14 rounded-2xl
+      bg-warning/10
+      flex items-center justify-center
+      shrink-0
+    "
+  >
+    <BadgePercent
+      className="w-7 h-7 text-warning"
+      strokeWidth={2.2}
+    />
+  </div>
           <div>
             <p className="text-xs label">Most Influential Feature</p>
             <p className="font-bold text-primary text-sm">{topFeature}</p>
           </div>
-          <div className="ml-auto text-right">
+          <div className="sm:ml-auto text-left sm:text-right">
             <p className="text-xs label">Importance</p>
             <p className="font-mono font-bold text-primary text-sm">
               {((featureImportance.features[0]?.importance || 0) * 100).toFixed(2)}%
@@ -63,7 +83,7 @@ export default function FeatureImportance({ featureImportance }) {
           <BarChart
             data={data}
             layout="vertical"
-            margin={{ top: 0, right: 80, left: 0, bottom: 0 }}
+            margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
             barCategoryGap="20%"
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0"
@@ -75,7 +95,7 @@ export default function FeatureImportance({ featureImportance }) {
               axisLine={false} tickLine={false}
             />
             <YAxis
-              type="category" dataKey="name" width={130}
+              type="category" dataKey="name" width={85}
               tick={{ fontSize: 10, fill: "var(--color-text-secondary)" }}
               axisLine={false} tickLine={false}
             />
@@ -110,7 +130,18 @@ export default function FeatureImportance({ featureImportance }) {
 function Empty({ msg }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-2">
-      <span className="text-3xl">⭐</span>
+      <div
+        className="
+          w-16 h-16 rounded-2xl
+          bg-primary/10
+          flex items-center justify-center
+        "
+      >
+        <DatabaseZap
+          className="w-8 h-8 text-primary"
+          strokeWidth={2.2}
+        />
+      </div>
       <p className="text-sm text-text-muted">{msg}</p>
     </div>
   );

@@ -1,5 +1,5 @@
 """
-SAIDAS - Semi-Automated Intelligent Data Analysis System
+SMARTMINER - AI-Powered Data Mining & Predictive Analysis Platform
 Main FastAPI application entry point.
 """
  
@@ -23,9 +23,9 @@ from routes.process import router as process_router
 async def lifespan(app: FastAPI):
     """Create required directories on startup; clean up on shutdown."""
     os.makedirs("temp_uploads", exist_ok=True)
-    print("✅ SAIDAS backend started — temp_uploads directory ready.")
+    print("✅ SMARTMINER backend started — temp_uploads directory ready.")
     yield
-    print("🛑 SAIDAS backend shutting down.")
+    print("🛑 SMARTMINER backend shutting down.")
  
  
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
  
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="SAIDAS API",
+        title="SMARTMINER API",
         description=(
             "Semi-Automated Intelligent Data Analysis System — "
             "Provides data mining, ML, and deep learning analysis "
@@ -86,7 +86,7 @@ def create_app() -> FastAPI:
     # -----------------------------------------------------------------------
     @app.get("/", tags=["Health"])
     async def root():
-        return {"status": "ok", "message": "SAIDAS API is running."}
+        return {"status": "ok", "message": "SMARTMINER API is running."}
  
     @app.get("/health", tags=["Health"])
     async def health_check():

@@ -8,6 +8,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import PageWrapper from "@/components/layout/PageWrapper";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+import Footer from "@/components/layout/Footer";
 
 // Lazy-load pages — each becomes its own JS chunk
 const HomePage = lazy(() => import("@/pages/HomePage"));
@@ -63,6 +64,9 @@ export default function App() {
           </Routes>
         </Suspense>
       </main>
+
+      {/* ── Footer — visible on every page ── */}
+      <Footer />
     </div>
   );
 }

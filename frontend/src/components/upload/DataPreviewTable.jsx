@@ -9,6 +9,9 @@
 //   maxPreview number         — how many rows to show (default 5)
 
 import { useState } from "react";
+import {
+  Table2,
+} from "lucide-react";
 
 // Dtype → short tag label + colour
 const DTYPE_TAG = {
@@ -52,7 +55,18 @@ export default function DataPreviewTable({
   if (!columns.length) {
     return (
       <div className="card flex flex-col items-center py-10 gap-3 text-center">
-        <span className="text-3xl">🗂️</span>
+        <div
+  className="
+    w-16 h-16 rounded-2xl
+    bg-primary/10
+    flex items-center justify-center
+  "
+>
+  <Table2
+    className="w-8 h-8 text-primary"
+    strokeWidth={2.2}
+  />
+</div>
         <p className="text-sm text-text-muted">
           No dataset loaded yet. Upload a CSV file to see a preview.
         </p>

@@ -4,6 +4,18 @@
 //   data: { frequent_itemsets: [], rules: [], note?: string, error?: string }
 
 import { useState } from "react";
+import {
+  AlertTriangle,
+  Boxes,
+  Link2,
+  Target,
+  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
+  Database,
+  GitBranch,
+  Workflow,
+} from "lucide-react";
 
 const MAX_DISPLAY = 10;
 
@@ -54,7 +66,7 @@ export default function AssociationRules({ data }) {
         className="flex items-start gap-3 p-4 rounded-xl
                       bg-amber-50 border border-amber-200 text-amber-800 text-sm"
       >
-        <span className="text-lg shrink-0">⚠️</span>
+        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
         <div>
           <p className="font-semibold mb-0.5">Association mining unavailable</p>
           <p className="text-xs opacity-80">{data.error}</p>
@@ -92,25 +104,35 @@ export default function AssociationRules({ data }) {
   };
 
   const SortIcon = ({ col }) => {
-    if (!col.sortable) return null;
-    if (sortKey !== col.key) return <span className="opacity-30 ml-1">↕</span>;
-    return <span className="ml-1">{sortDir === "desc" ? "↓" : "↑"}</span>;
-  };
+  if (!col.sortable) return null;
+
+  if (sortKey !== col.key) {
+    return (
+      <ArrowUpDown className="w-3.5 h-3.5 ml-1 opacity-30 inline" />
+    );
+  }
+
+  return sortDir === "desc" ? (
+    <ArrowDown className="w-3.5 h-3.5 ml-1 inline" />
+  ) : (
+    <ArrowUp className="w-3.5 h-3.5 ml-1 inline" />
+  );
+};
 
   return (
     <div className="space-y-5">
       {/* ── Summary strip ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <StatChip
           label="Frequent Itemsets"
           value={frequentItemsets.length}
-          icon="📦"
+          icon={<Boxes className="w-5 h-5 text-primary" />}
         />
-        <StatChip label="Rules Generated" value={rules.length} icon="🔗" />
+        <StatChip label="Rules Generated" value={rules.length} icon={<Workflow className="w-5 h-5 text-success" />} />
         <StatChip
           label="Avg Confidence"
           value={`${((rules.reduce((s, r) => s + r.confidence, 0) / rules.length) * 100).toFixed(1)}%`}
-          icon="🎯"
+          icon={<Target className="w-5 h-5 text-warning" />}
         />
       </div>
 
@@ -119,7 +141,8 @@ export default function AssociationRules({ data }) {
         <div className="flex flex-wrap gap-2 mb-3">
           <span
             className="px-3 py-1 rounded-full text-xs font-medium bg-[rgba(79,70,229,0.08)]
-            text-primary border border-[rgba(79,70,229,0.12)]
+            text-primary border border-[rgba(79,70,229,0.12)] transition-all duration-200 hover:-translate-y-0.5
+hover:shadow-sm
             "
           >
             Min Support = {data.min_support ?? 0.1}
@@ -127,7 +150,8 @@ export default function AssociationRules({ data }) {
 
           <span
             className="px-3 py-1 rounded-full text-xs font-medium bg-[rgba(16,185,129,0.08)]
-            text-success border border-[rgba(16,185,129,0.12)]
+            text-success border border-[rgba(16,185,129,0.12)] transition-all duration-200 hover:-translate-y-0.5
+hover:shadow-sm
             "
           >
             Min Confidence = {data.min_confidence ?? 0.5}
@@ -293,15 +317,21 @@ export default function AssociationRules({ data }) {
 function StatChip({ label, value, icon }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl
-                    bg-surface border border-surface-border"
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl
+bg-surface border border-surface-border
+
+hover:-translate-y-1
+hover:shadow-md
+hover:border-slate-300
+
+transition-all duration-300"
     >
       <span className="text-xl">{icon}</span>
       <div>
         <p className="text-lg font-extrabold text-primary leading-none">
           {value}
         </p>
-        <p className="label mt-0.5">{label}</p>
+        <p className="label mt-0.5 wrap-break-words leading-snug">{label}</p>
       </div>
     </div>
   );
@@ -310,7 +340,7 @@ function StatChip({ label, value, icon }) {
 function EmptyState({ msg }) {
   return (
     <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-      <span className="text-4xl">🔗</span>
+      <Link2 className="w-10 h-10 text-primary" strokeWidth={2.2} />
       <p className="text-sm text-text-muted max-w-sm">{msg}</p>
     </div>
   );

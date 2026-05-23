@@ -1,6 +1,7 @@
 // SAIDAS — components/upload/TargetSelector.jsx
 
 import { useState, useMemo } from "react";
+import { Search, Crosshair, Check, Binary, Type } from "lucide-react";
 
 const PILL_THRESHOLD = 20;
 
@@ -107,16 +108,16 @@ export default function TargetSelector({
   if (!columns.length) return null;
 
   return (
-    <div className="card space-y-5">
+    <div className="card space-y-5 shadow-sm hover:shadow-md transition-all duration-300">
       {/* Header */}
       <div>
-        <h3 className="font-semibold text-text-primary mb-1">
+        <h3 className="text-xl font-bold tracking-tight text-text-primary mb-1">
           Select Target Variable
         </h3>
 
         <p className="text-sm text-text-secondary leading-snug">
-          Choose the column you want to predict. SAIDAS will auto-detect whether
-          this is a{" "}
+          Choose the column you want to predict. SMARTMINER will auto-detect
+          whether this is a{" "}
           <span className="font-medium text-primary">classification</span> or{" "}
           <span className="font-medium text-accent">regression</span> task.
         </p>
@@ -125,8 +126,8 @@ export default function TargetSelector({
       {/* Search */}
       {usePills && columns.length > 8 && (
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">
-            🔍
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm">
+            <Search className="w-4 h-4 text-text-muted" />
           </span>
 
           <input
@@ -134,7 +135,7 @@ export default function TargetSelector({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter columns…"
-            className="w-full pl-8 pr-4 py-2 text-sm rounded-xl
+            className="w-full pl-10 pr-4 py-3 text-sm rounded-2xl shadow-sm hover:shadow-md
                        border border-surface-border
                        bg-surface
                        text-text-primary
@@ -180,11 +181,13 @@ export default function TargetSelector({
                       "border text-left transition-all duration-150",
                       "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-30",
                       active || hoverActive
-                        ? "border-primary bg-primary shadow-(--shadow-card)"
+                        ? "border-primary bg-primary shadow-(--shadow-card) ring-2 ring-primary/20 scale-[1.01]"
                         : [
                             "border-surface-border bg-white",
                             "hover:border-primary",
                             "hover:bg-primary hover:bg-opacity-[0.03]",
+                            "hover:-translate-y-0.5",
+                            "hover:shadow-sm",
                           ].join(" "),
                     ].join(" ")}
                   >
@@ -194,7 +197,10 @@ export default function TargetSelector({
                         className="absolute top-1.5 right-2 text-[10px]"
                         title="Suggested target column"
                       >
-                        ⭐
+                        <Crosshair
+                          className="w-3.5 h-3.5 text-primary"
+                          strokeWidth={2.4}
+                        />
                       </span>
                     )}
 
@@ -202,7 +208,9 @@ export default function TargetSelector({
                     <span
                       className={[
                         "text-sm font-medium truncate w-full pr-4 leading-snug",
-                        active || hoverActive ? "text-white" : "text-text-primary",
+                        active || hoverActive
+                          ? "text-white"
+                          : "text-text-primary",
                       ].join(" ")}
                     >
                       {col}
@@ -272,7 +280,7 @@ export default function TargetSelector({
 
             {/* Suggested */}
             {sorted.some((c) => likelyTarget(c, dtypes, uniqueCounts)) && (
-              <optgroup label="⭐ Suggested targets">
+              <optgroup label="Suggested targets">
                 {sorted
                   .filter((c) => likelyTarget(c, dtypes, uniqueCounts))
                   .map((col) => (
@@ -320,8 +328,8 @@ function SelectedBar({ col, dtype = "", nulls = 0, uniqueCounts = 0 }) {
 
   const taskGuess =
     uniqueCounts <= 10
-      ? "Likely classification task — SAIDAS will auto-detect."
-      : "Likely regression task — SAIDAS will auto-detect.";
+      ? "Likely classification task — SMARTMINER will auto-detect."
+      : "Likely regression task — SMARTMINER will auto-detect.";
 
   return (
     <div
@@ -333,7 +341,9 @@ function SelectedBar({ col, dtype = "", nulls = 0, uniqueCounts = 0 }) {
           "color-mix(in srgb, var(--color-primary) 25%, transparent)",
       }}
     >
-      <span className="text-xl mt-0.5">🎯</span>
+      <span className="text-xl mt-0.5">
+        <Crosshair className="w-6 h-6 text-primary" strokeWidth={2.3} />
+      </span>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -346,7 +356,15 @@ function SelectedBar({ col, dtype = "", nulls = 0, uniqueCounts = 0 }) {
               color: tag.color,
             }}
           >
-            {dtype || "?"}
+            <div className="flex items-center gap-1">
+              {dtv === "numeric" ? (
+                <Binary className="w-3 h-3" strokeWidth={2.4} />
+              ) : (
+                <Type className="w-3 h-3" strokeWidth={2.4} />
+              )}
+
+              <span>{dtype || "?"}</span>
+            </div>
           </span>
 
           {nulls > 0 && (
@@ -365,7 +383,7 @@ function SelectedBar({ col, dtype = "", nulls = 0, uniqueCounts = 0 }) {
         <p className="text-xs text-text-secondary mt-0.5">{taskGuess}</p>
       </div>
 
-      <span className="text-success text-lg shrink-0">✓</span>
+      <Check className="w-5 h-5 text-emerald-500 shrink-0 mt-1" />
     </div>
   );
 }
