@@ -54,6 +54,7 @@ def create_app() -> FastAPI:
         "http://localhost:5173",   # Vite alternative port
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
+        "https://YOUR_FRONTEND_URL.vercel.app",  # Add your production frontend URL here (e.g., Vercel, Netlify)
     ]
  
     app.add_middleware(

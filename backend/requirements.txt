@@ -1,66 +1,108 @@
 # =============================================================================
-# SAIDAS — Python Dependencies
+# SMARTMINER — Python Dependencies
 # =============================================================================
-# Install:  pip install -r requirements.txt
-# Tested on Python 3.10 / 3.11
+# Install command:
+#     pip install -r requirements.txt
+#
+# Tested on:
+#     Python 3.12 / 3.14.5
+#
+# Purpose:
+#     Backend dependencies for the SMARTMINER AI-powered
+#     data mining & predictive analysis platform.
 # =============================================================================
 
 
-# ---------------------------------------------------------------------------
-# Web framework & server
-# ---------------------------------------------------------------------------
-fastapi==0.111.0          # Core API framework
-uvicorn[standard]==0.29.0 # ASGI server (includes websockets + uvloop)
-python-multipart==0.0.9   # Required for FastAPI file upload (UploadFile)
-pydantic==2.7.1           # Data validation (FastAPI uses this internally)
-pydantic-settings==2.2.1  # Settings management via .env
+# =============================================================================
+# WEB FRAMEWORK & API SERVER
+# =============================================================================
+
+fastapi==0.111.0
+# Modern high-performance Python web framework used to build the REST API.
+
+uvicorn[standard]==0.29.0
+# ASGI server used to run FastAPI applications.
+# [standard] installs performance extras like uvloop and websockets.
+
+python-multipart==0.0.9
+# Required for file uploads using FastAPI UploadFile.
+
+pydantic==2.7.1
+# Data validation and schema management used internally by FastAPI.
+
+pydantic-settings==2.2.1
+# Environment/configuration management using .env files.
 
 
-# ---------------------------------------------------------------------------
-# Data handling
-# ---------------------------------------------------------------------------
-pandas==2.2.2             # DataFrame operations, CSV parsing
-numpy>=2.0.0,<3.0.0            # Numerical computing (pinned for TF compatibility)
-openpyxl==3.1.2           # Optional: read .xlsx files if needed
+# =============================================================================
+# DATA PROCESSING & FILE HANDLING
+# =============================================================================
+
+pandas==2.2.2
+# Main library for CSV parsing, DataFrame operations,
+# preprocessing, and dataset manipulation.
+
+numpy==1.26.4
+# Numerical computing library used by nearly all ML/DL libraries.
+
+openpyxl==3.1.2
+# Enables reading and writing Excel (.xlsx) files.
+
+aiofiles==23.2.1
+# Async file handling for temporary uploaded files.
 
 
-# ---------------------------------------------------------------------------
-# Data Mining
-# ---------------------------------------------------------------------------
-mlxtend==0.23.1   # Apriori, association rules
+# =============================================================================
+# DATA MINING & PATTERN DISCOVERY
+# =============================================================================
+
+mlxtend==0.23.1
+# Implements Apriori algorithm and association rule mining.
+
+scipy==1.13.0
+# Scientific computing utilities and statistical calculations.
 
 
-# ---------------------------------------------------------------------------
-# Machine Learning
-# ---------------------------------------------------------------------------
-scikit-learn==1.4.2       # Logistic Regression, Random Forest, PCA,
-                           # K-Means, preprocessing, metrics
-keras==3.8.0              # Keras 3 standalone — resolves Pylance import warnings
+# =============================================================================
+# MACHINE LEARNING
+# =============================================================================
+
+scikit-learn==1.4.2
+# Core ML library:
+# - Logistic Regression
+# - Random Forest
+# - PCA
+# - K-Means Clustering
+# - Preprocessing
+# - Evaluation Metrics
 
 
-# ---------------------------------------------------------------------------
-# Deep Learning
-# ---------------------------------------------------------------------------
-tensorflow==2.19.0         # Keras MLP model (CPU-only friendly build)
-                           # Use tensorflow-cpu==2.19.0 for lighter install
+# =============================================================================
+# DEEP LEARNING
+# =============================================================================
+
+tensorflow==2.16.1
+# Deep learning framework used for the MLP neural network model.
+# Includes built-in Keras API.
 
 
-# ---------------------------------------------------------------------------
-# Visualization data (returned as JSON to frontend)
-# ---------------------------------------------------------------------------
-scipy==1.13.0              # Pearson correlation p-values, stats utilities
+# =============================================================================
+# UTILITIES
+# =============================================================================
+
+python-dotenv==1.0.1
+# Loads environment variables from .env files.
+
+httpx==0.27.0
+# Async HTTP client useful for API testing and requests.
 
 
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-python-dotenv==1.0.1       # Load .env variables
-aiofiles==23.2.1           # Async file I/O for temp file handling
-httpx==0.27.0              # Async HTTP client (useful for testing)
+# =============================================================================
+# TESTING & DEVELOPMENT
+# =============================================================================
 
+pytest==8.2.0
+# Python testing framework.
 
-# ---------------------------------------------------------------------------
-# Development / Testing (optional but recommended)
-# ---------------------------------------------------------------------------
-pytest==8.2.0              # Unit testing
-pytest-asyncio==0.23.6     # Async test support
+pytest-asyncio==0.23.6
+# Async testing support for FastAPI endpoints.
