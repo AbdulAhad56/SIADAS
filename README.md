@@ -63,7 +63,7 @@ The platform supports:
 
 ### PCA & Clustering
 
-![PCA and Clustering](screenshots/pca-clustering.PNG)
+![PCA and Clustering](screenshots/pca-cluster.PNG)
 
 ### Model Performance
 
