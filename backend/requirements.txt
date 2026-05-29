@@ -5,7 +5,7 @@
 #     pip install -r requirements.txt
 #
 # Tested on:
-#     Python 3.12 / 3.14.5
+#     Python 3.12.10
 #
 # Purpose:
 #     Backend dependencies for the SMARTMINER AI-powered
