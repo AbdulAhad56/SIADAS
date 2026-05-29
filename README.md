@@ -55,35 +55,35 @@ The platform supports:
 
 ### Dashboard Overview
 
-![Dashboard Overview](screenshots/dashboard-overview.png)
+![Dashboard Overview](screenshots/dashboard-overview.PNG)
 
 ### Correlation Analysis
 
-![Correlation Heatmap](screenshots/correlation-heatmap.png)
+![Correlation Heatmap](screenshots/correlation-heatmap.PNG)
 
 ### PCA & Clustering
 
-![PCA and Clustering](screenshots/pca-clustering.png)
+![PCA and Clustering](screenshots/pca-clustering.PNG)
 
 ### Model Performance
 
-![Model Performance](screenshots/model-performance.png)
+![Model Performance](screenshots/model-performance.PNG)
 
 ### Feature Importance
 
-![Feature Importance](screenshots/feature-importance.png)
+![Feature Importance](screenshots/feature-importance.PNG)
 
 ### Association Rules
 
-![Association Rules](screenshots/association-rules.png)
+![Association Rules](screenshots/association-rules.PNG)
 
 ### Outlier Detection
 
-![Outlier Detection](screenshots/outlier-detection.png)
+![Outlier Detection](screenshots/outlier-detection.PNG)
 
 ### Automated Insights
 
-![Automated Insights](screenshots/insights-panel.png)
+![Automated Insights](screenshots/insights-panel.PNG)
 
 ---
 
